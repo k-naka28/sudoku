@@ -59,14 +59,15 @@
 
         const grid = Array.from({length:9},()=>Array(9).fill(0));
         const lowConf = [];
+        const baseCanvas = prep.cleanedCanvas || prep.canvas;
         for(let r=0;r<9;r++){
           for(let c=0;c<9;c++){
             if(canceled) return;
-            const cellCanvas = w.SudokuOcrScan.extractCell(prep.canvas, r, c, size);
+            const cellCanvas = w.SudokuOcrScan.extractCell(baseCanvas, r, c, size);
             const res = w.SudokuTemplateOCR.matchDigit(cellCanvas);
             if(res.digit){
               grid[r][c] = res.digit;
-              if(res.score < 0.55) lowConf.push([r,c]);
+              if(res.score < 0.62 || res.gap < 0.06) lowConf.push([r,c]);
             }
             opts.setMsg(`画像を解析中... ${r*9 + c + 1}/81`,'warn');
           }

@@ -22,7 +22,7 @@
           const font = fontBase.replace(/\d+px/, `${size}px`);
           const canvas = renderDigit(d, font);
           const vec = canvasToVector(canvas);
-          list.push({d, vec});
+          list.push({d, vec: vec.vec, blackCount: vec.blackCount});
         }
       }
     }
@@ -164,16 +164,23 @@
 
   function matchDigit(cellCanvas){
     const prep = prepareCell(cellCanvas);
-    if(!prep.vec) return {digit:0, score:0};
+    if(!prep.vec) return {digit:0, score:0, gap:0};
 
     let best = {digit:0, score:0};
+    let second = {digit:0, score:0};
     for(const t of templates){
-      const score = cosineSimilarity(prep.vec, t.vec.vec);
+      const base = cosineSimilarity(prep.vec, t.vec);
+      const diff = Math.abs(prep.blackCount - t.blackCount);
+      const penalty = Math.min(0.25, diff / 180);
+      const score = base - penalty;
       if(score > best.score){
+        second = best;
         best = {digit: t.d, score};
+      }else if(score > second.score){
+        second = {digit: t.d, score};
       }
     }
-    return best;
+    return {digit: best.digit, score: best.score, gap: best.score - second.score};
   }
 
   function otsuThreshold(hist, total){

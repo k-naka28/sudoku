@@ -114,8 +114,10 @@
       outCanvas.height = size;
       cv.imshow(outCanvas, dst);
 
+      const cleanedCanvas = cleanGrid(dst, size);
+
       srcTri.delete(); dstTri.delete(); M.delete(); dst.delete();
-      return {canvas: outCanvas, size};
+      return {canvas: outCanvas, cleanedCanvas, size};
     }catch(err){
       return {error:'OpenCV解析に失敗しました。'};
     }finally{
@@ -127,6 +129,48 @@
       if(dilated) dilated.delete();
       if(contours) contours.delete();
       if(hierarchy) hierarchy.delete();
+    }
+  }
+
+  function cleanGrid(warped, size){
+    let gray, bin, hKernel, vKernel, hLines, vLines, gridLines, digits, cleaned;
+    try{
+      gray = new cv.Mat();
+      cv.cvtColor(warped, gray, cv.COLOR_RGBA2GRAY, 0);
+      bin = new cv.Mat();
+      cv.adaptiveThreshold(gray, bin, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 11, 2);
+
+      hKernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(25,1));
+      vKernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(1,25));
+      hLines = new cv.Mat();
+      vLines = new cv.Mat();
+      cv.morphologyEx(bin, hLines, cv.MORPH_OPEN, hKernel);
+      cv.morphologyEx(bin, vLines, cv.MORPH_OPEN, vKernel);
+
+      gridLines = new cv.Mat();
+      cv.add(hLines, vLines, gridLines);
+      digits = new cv.Mat();
+      cv.subtract(bin, gridLines, digits);
+      cleaned = new cv.Mat();
+      cv.bitwise_not(digits, cleaned);
+
+      const out = document.createElement('canvas');
+      out.width = size;
+      out.height = size;
+      cv.imshow(out, cleaned);
+      return out;
+    }catch(err){
+      return null;
+    }finally{
+      if(gray) gray.delete();
+      if(bin) bin.delete();
+      if(hKernel) hKernel.delete();
+      if(vKernel) vKernel.delete();
+      if(hLines) hLines.delete();
+      if(vLines) vLines.delete();
+      if(gridLines) gridLines.delete();
+      if(digits) digits.delete();
+      if(cleaned) cleaned.delete();
     }
   }
 
