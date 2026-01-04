@@ -247,6 +247,10 @@
       try{
         const img = await loadImage(file);
         setMsg('画像を読み込みました。盤面を検出中...','warn');
+        const cvReady = await waitForOpenCv(5000);
+        if(!cvReady){
+          setMsg('OpenCVが準備できませんでした。簡易解析で続行します。','warn');
+        }
         const prep = preprocessImage(img);
         if(!prep){
           setMsg('盤面の検出に失敗しました。画像のコントラストが低い可能性があります。','err');
@@ -267,6 +271,7 @@
         const lowConf = [];
 
         ocrWorker = await createOcrWorker();
+        setMsg('OCRエンジン準備完了。セル解析を開始します...','warn');
         setMsg('OCRエンジン準備完了。セル解析を開始します...','warn');
         for(let r=0;r<9;r++){
           for(let c=0;c<9;c++){
@@ -328,6 +333,10 @@
     }
 
     function preprocessImage(img){
+      if(window.cv && cv.Mat){
+        const res = preprocessWithOpenCv(img);
+        if(res) return res;
+      }
       const maxSide = 900;
       const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
       const w = Math.round(img.width * scale);
@@ -390,6 +399,144 @@
 
       if(finalSize <= 0 || x < 0 || y < 0) return {error:'盤面の切り出しに失敗しました。'};
       return {canvas, x, y, size: finalSize};
+    }
+
+    function preprocessWithOpenCv(img){
+      const maxSide = 1200;
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      if(w < 200 || h < 200) return {error:'画像が小さすぎます。'};
+
+      const srcCanvas = document.createElement('canvas');
+      srcCanvas.width = w;
+      srcCanvas.height = h;
+      const sctx = srcCanvas.getContext('2d');
+      sctx.drawImage(img, 0, 0, w, h);
+
+      let src, gray, blur, edges, contours, hierarchy;
+      try{
+        src = cv.imread(srcCanvas);
+        gray = new cv.Mat();
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+        blur = new cv.Mat();
+        cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
+        edges = new cv.Mat();
+        cv.Canny(blur, edges, 50, 150);
+
+        contours = new cv.MatVector();
+        hierarchy = new cv.Mat();
+        cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+        let bestQuad = null;
+        let bestArea = 0;
+        for(let i=0;i<contours.size();i++){
+          const cnt = contours.get(i);
+          const area = cv.contourArea(cnt);
+          if(area < (w*h*0.05)) { cnt.delete(); continue; }
+          const peri = cv.arcLength(cnt, true);
+          const approx = new cv.Mat();
+          cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+          if(approx.rows === 4 && cv.isContourConvex(approx)){
+            if(area > bestArea){
+              if(bestQuad) bestQuad.delete();
+              bestQuad = approx;
+              bestArea = area;
+            }else{
+              approx.delete();
+            }
+          }else{
+            approx.delete();
+          }
+          cnt.delete();
+        }
+        if(!bestQuad){
+          return null;
+        }
+
+        const pts = [];
+        for(let i=0;i<4;i++){
+          const x = bestQuad.intAt(i,0);
+          const y = bestQuad.intAt(i,1);
+          pts.push([x,y]);
+        }
+        bestQuad.delete();
+
+        const ordered = orderQuadPoints(pts);
+        const size = 900;
+        const srcTri = cv.matFromArray(4,1,cv.CV_32FC2, [
+          ordered[0][0], ordered[0][1],
+          ordered[1][0], ordered[1][1],
+          ordered[2][0], ordered[2][1],
+          ordered[3][0], ordered[3][1]
+        ]);
+        const dstTri = cv.matFromArray(4,1,cv.CV_32FC2, [
+          0,0, size-1,0, size-1,size-1, 0,size-1
+        ]);
+        const M = cv.getPerspectiveTransform(srcTri, dstTri);
+        const dst = new cv.Mat();
+        cv.warpPerspective(src, dst, M, new cv.Size(size, size), cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar(255,255,255,255));
+
+        const outCanvas = document.createElement('canvas');
+        outCanvas.width = size;
+        outCanvas.height = size;
+        cv.imshow(outCanvas, dst);
+
+        srcTri.delete(); dstTri.delete(); M.delete(); dst.delete();
+        return {canvas: outCanvas, x:0, y:0, size};
+      }catch(err){
+        return null;
+      }finally{
+        if(src) src.delete();
+        if(gray) gray.delete();
+        if(blur) blur.delete();
+        if(edges) edges.delete();
+        if(contours) contours.delete();
+        if(hierarchy) hierarchy.delete();
+      }
+    }
+
+    function orderQuadPoints(pts){
+      const sum = pts.map(p=>p[0]+p[1]);
+      const diff = pts.map(p=>p[0]-p[1]);
+      const tl = pts[sum.indexOf(Math.min(...sum))];
+      const br = pts[sum.indexOf(Math.max(...sum))];
+      const tr = pts[diff.indexOf(Math.max(...diff))];
+      const bl = pts[diff.indexOf(Math.min(...diff))];
+      return [tl,tr,br,bl];
+    }
+
+    function waitForOpenCv(timeoutMs){
+      if(window.cv && cv.Mat) return Promise.resolve(true);
+      if(window.__cvWaitPromise) return window.__cvWaitPromise;
+      window.__cvWaitPromise = new Promise(resolve=>{
+        let done = false;
+        const timer = setTimeout(()=>{ if(!done) resolve(false); }, timeoutMs || 4000);
+        const finish = ()=>{
+          if(done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve(true);
+        };
+        const hook = ()=>{
+          if(window.cv && cv.Mat) finish();
+        };
+        if(window.cv && !cv.Mat){
+          const prev = cv.onRuntimeInitialized;
+          cv.onRuntimeInitialized = ()=>{
+            if(typeof prev === 'function') prev();
+            hook();
+          };
+        }else{
+          const interval = setInterval(()=>{
+            if(window.cv && cv.Mat){
+              clearInterval(interval);
+              finish();
+            }
+          }, 100);
+        }
+      });
+      return window.__cvWaitPromise;
     }
 
     function findBestComponent(mask, w, h, opts){
