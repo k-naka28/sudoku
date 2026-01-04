@@ -246,14 +246,23 @@
 
       try{
         const img = await loadImage(file);
+        setMsg('画像を読み込みました。盤面を検出中...','warn');
         const prep = preprocessImage(img);
         if(!prep){
-          setMsg('盤面の検出に失敗しました。','err');
+          setMsg('盤面の検出に失敗しました。画像のコントラストが低い可能性があります。','err');
+          return;
+        }
+        if(prep.error){
+          setMsg(`盤面の検出に失敗しました。${prep.error}`,'err');
           return;
         }
 
         const {canvas, x, y, size} = prep;
         const cellSize = Math.floor(size / 9);
+        if(cellSize < 8){
+          setMsg('盤面が小さすぎて解析できません。もう少し近くで撮影してください。','err');
+          return;
+        }
         const grid = Array.from({length:9},()=>Array(9).fill(0));
         const lowConf = [];
 
@@ -291,7 +300,7 @@
         setMsg(`画像取り込み完了。${note}`,'ok');
       }catch(err){
         if(err && err.message === 'OCR_CANCELED') return;
-        setMsg('画像の解析に失敗しました。','err');
+        setMsg('画像の解析に失敗しました。別の角度・明るさで試してください。','err');
       }finally{
         if(ocrWorker){
           await ocrWorker.terminate();
@@ -319,6 +328,7 @@
       const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
       const w = Math.round(img.width * scale);
       const h = Math.round(img.height * scale);
+      if(w < 200 || h < 200) return {error:'画像が小さすぎます。'};
       const canvas = document.createElement('canvas');
       canvas.width = w;
       canvas.height = h;
@@ -357,7 +367,7 @@
       if(!best){
         best = findGridByEdges(gray, w, h);
       }
-      if(!best) return null;
+      if(!best) return {error:'盤面の枠が見つかりませんでした。'};
 
       const boxW = best.maxX - best.minX + 1;
       const boxH = best.maxY - best.minY + 1;
@@ -374,6 +384,7 @@
       if(y + finalSize > h) y = h - finalSize;
       if(finalSize <= 0) return null;
 
+      if(finalSize <= 0 || x < 0 || y < 0) return {error:'盤面の切り出しに失敗しました。'};
       return {canvas, x, y, size: finalSize};
     }
 
