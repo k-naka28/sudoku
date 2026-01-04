@@ -326,27 +326,29 @@
       ctx.drawImage(img, 0, 0, w, h);
       const imgData = ctx.getImageData(0, 0, w, h);
       const data = imgData.data;
-
-      let sum = 0;
+      const hist = new Uint32Array(256);
+      const gray = new Uint8Array(w*h);
+      let idx = 0;
       for(let y0=0;y0<h;y0++){
         for(let x0=0;x0<w;x0++){
           const i = (y0*w + x0) * 4;
           const r = data[i], g = data[i+1], b = data[i+2];
-          const lum = 0.299*r + 0.587*g + 0.114*b;
-          sum += lum;
+          const lum = Math.round(0.299*r + 0.587*g + 0.114*b);
+          gray[idx++] = lum;
+          hist[lum]++;
         }
       }
-      const avg = sum / (w*h);
-      const thresh = Math.min(210, Math.max(120, avg - 20));
+      const thresh = otsuThreshold(hist, w*h);
       const black = new Uint8Array(w*h);
+      idx = 0;
       for(let y0=0;y0<h;y0++){
         for(let x0=0;x0<w;x0++){
-          const i = (y0*w + x0) * 4;
-          const r = data[i], g = data[i+1], b = data[i+2];
-          const lum = 0.299*r + 0.587*g + 0.114*b;
+          const lum = gray[idx];
           const v = lum < thresh ? 0 : 255;
+          const i = (y0*w + x0) * 4;
           data[i] = data[i+1] = data[i+2] = v;
-          if(v === 0) black[y0*w + x0] = 1;
+          if(v === 0) black[idx] = 1;
+          idx++;
         }
       }
       ctx.putImageData(imgData, 0, 0);
@@ -377,12 +379,22 @@
             if(cy > 0 && black[n3] && !visited[n3]){ visited[n3]=1; stack.push(n3); }
             if(cy + 1 < h && black[n4] && !visited[n4]){ visited[n4]=1; stack.push(n4); }
           }
-          if(!best || count > best.count){
-            best = {minX, minY, maxX, maxY, count};
+          const boxW = maxX - minX + 1;
+          const boxH = maxY - minY + 1;
+          const area = boxW * boxH;
+          const aspect = boxW > boxH ? boxW / boxH : boxH / boxW;
+          const density = count / area;
+          const minSide = Math.min(boxW, boxH);
+          const sizeScore = Math.min(boxW, boxH) / Math.max(w, h);
+          const aspectScore = Math.max(0, 1.3 - aspect);
+          const densityScore = (density >= 0.02 && density <= 0.2) ? 1 : 0;
+          const score = sizeScore * 2 + aspectScore + densityScore;
+          if(!best || score > best.score){
+            best = {minX, minY, maxX, maxY, count, score, minSide};
           }
         }
       }
-      if(!best) return null;
+      if(!best || best.minSide < Math.min(w, h) * 0.2) return null;
 
       const boxW = best.maxX - best.minX + 1;
       const boxH = best.maxY - best.minY + 1;
@@ -414,13 +426,19 @@
       ctx.drawImage(canvas, x + margin, y + margin, srcSize, srcSize, 0, 0, 32, 32);
       const imgData = ctx.getImageData(0, 0, 32, 32);
       const data = imgData.data;
+      const hist = new Uint32Array(256);
+      for(let i=0;i<data.length;i+=4){
+        const lum = Math.round(0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2]);
+        hist[lum]++;
+      }
+      const thresh = otsuThreshold(hist, 32*32);
       const rowBlack = new Uint16Array(32);
       const colBlack = new Uint16Array(32);
       for(let y0=0;y0<32;y0++){
         for(let x0=0;x0<32;x0++){
           const i = (y0*32 + x0) * 4;
           const lum = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
-          const v = lum < 170 ? 0 : 255;
+          const v = lum < thresh ? 0 : 255;
           data[i] = data[i+1] = data[i+2] = v;
           if(v === 0){
             rowBlack[y0]++;
@@ -446,6 +464,31 @@
       }
       ctx.putImageData(imgData, 0, 0);
       return cellCanvas;
+    }
+
+    function otsuThreshold(hist, total){
+      let sum = 0;
+      for(let t=0;t<256;t++) sum += t * hist[t];
+      let sumB = 0;
+      let wB = 0;
+      let wF = 0;
+      let varMax = 0;
+      let threshold = 170;
+      for(let t=0;t<256;t++){
+        wB += hist[t];
+        if(wB === 0) continue;
+        wF = total - wB;
+        if(wF === 0) break;
+        sumB += t * hist[t];
+        const mB = sumB / wB;
+        const mF = (sum - sumB) / wF;
+        const varBetween = wB * wF * (mB - mF) * (mB - mF);
+        if(varBetween > varMax){
+          varMax = varBetween;
+          threshold = t;
+        }
+      }
+      return Math.min(230, Math.max(90, threshold));
     }
 
     async function createOcrWorker(){
