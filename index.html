@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sudoku｜検算・色切替・ヒント（1手適用）＋Undo/Redo</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <meta name="color-scheme" content="light dark" />
+</head>
+<body>
+  <header>
+    <h1>Sudoku（ヒント1手適用・Undo/Redo対応）</h1>
+    <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。ヒントは押すと<strong>1手が盤面に入力</strong>されます。</p>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <div class="gridwrap">
+        <div id="board" class="board" aria-label="数独盤面"></div>
+        <div id="rowSums" class="row-sums" aria-label="行の総和"></div>
+        <aside id="blockPane" class="right-panel" aria-label="検算パネル">
+          <div id="blockSums" class="block-sums" aria-label="3x3ブロックの総和"></div>
+        </aside>
+        <div id="colSums" class="col-sums" aria-label="列の総和"></div>
+      </div>
+
+      <section class="controls" aria-label="操作パネル">
+        <div class="row">
+          <button id="solve" class="primary">解く</button>
+          <button id="doHint">ヒント（1手）</button>
+          <button id="undo" disabled>戻す</button>
+          <button id="redo" disabled>進む</button>
+          <button id="check">矛盾チェック</button>
+          <button id="clear">全消去</button>
+          <button id="demo">例題</button>
+          <label class="selectwrap">手入力の色:
+            <select id="manualColor">
+              <option value="blue" selected>青</option>
+              <option value="black">黒</option>
+            </select>
+          </label>
+        </div>
+        <div class="row io">
+          <input id="linear" type="text" placeholder="81文字（0=空欄）" />
+          <button id="load">読み込む（固定）</button>
+          <button id="export">書き出す</button>
+        </div>
+        <div id="msg" class="msg" aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="note">
+    <p>完成時は各行・列・ブロックの合計が<strong>45</strong>（OK緑／未完成橙／矛盾赤）。</p>
+  </footer>
+
+  <!-- 依存順に読み込み（defer は順序を保持して DOM 後に実行） -->
+  <script defer src="./core/solver.js"></script>
+  <script defer src="./core/grid.js"></script>
+  <script defer src="./core/sums.js"></script>
+
+  <script defer src="./hints/candidates.js"></script>
+  <script defer src="./hints/naked.js"></script>
+  <script defer src="./hints/hidden.js"></script>
+  <script defer src="./hints/pairs.js"></script>
+  <script defer src="./hints/triples.js"></script>
+  <script defer src="./hints/xwing.js"></script>
+  <script defer src="./hints/locked.js"></script>
+  <script defer src="./hints/ywing.js"></script>
+  <script defer src="./ui/reasons.js"></script>
+  <script defer src="./hints/quads.js"></script>
+  <script defer src="./hints/swordfish.js"></script>
+
+  <script defer src="./app.js"></script>
+</body>
+</html>
