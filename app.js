@@ -327,42 +327,83 @@
       const imgData = ctx.getImageData(0, 0, w, h);
       const data = imgData.data;
 
-      let minX=w, minY=h, maxX=0, maxY=0, found=false;
+      let sum = 0;
       for(let y0=0;y0<h;y0++){
         for(let x0=0;x0<w;x0++){
           const i = (y0*w + x0) * 4;
           const r = data[i], g = data[i+1], b = data[i+2];
           const lum = 0.299*r + 0.587*g + 0.114*b;
-          const v = lum < 200 ? 0 : 255;
+          sum += lum;
+        }
+      }
+      const avg = sum / (w*h);
+      const thresh = Math.min(210, Math.max(120, avg - 20));
+      const black = new Uint8Array(w*h);
+      for(let y0=0;y0<h;y0++){
+        for(let x0=0;x0<w;x0++){
+          const i = (y0*w + x0) * 4;
+          const r = data[i], g = data[i+1], b = data[i+2];
+          const lum = 0.299*r + 0.587*g + 0.114*b;
+          const v = lum < thresh ? 0 : 255;
           data[i] = data[i+1] = data[i+2] = v;
-          if(v === 0){
-            found = true;
-            if(x0 < minX) minX = x0;
-            if(x0 > maxX) maxX = x0;
-            if(y0 < minY) minY = y0;
-            if(y0 > maxY) maxY = y0;
+          if(v === 0) black[y0*w + x0] = 1;
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+
+      const visited = new Uint8Array(w*h);
+      let best = null;
+      const stack = [];
+      for(let y0=0;y0<h;y0++){
+        for(let x0=0;x0<w;x0++){
+          const idx = y0*w + x0;
+          if(!black[idx] || visited[idx]) continue;
+          let minX=x0, minY=y0, maxX=x0, maxY=y0, count=0;
+          visited[idx] = 1;
+          stack.push(idx);
+          while(stack.length){
+            const cur = stack.pop();
+            const cy = Math.floor(cur / w);
+            const cx = cur - cy * w;
+            count++;
+            if(cx < minX) minX = cx;
+            if(cx > maxX) maxX = cx;
+            if(cy < minY) minY = cy;
+            if(cy > maxY) maxY = cy;
+
+            const n1 = cur - 1, n2 = cur + 1, n3 = cur - w, n4 = cur + w;
+            if(cx > 0 && black[n1] && !visited[n1]){ visited[n1]=1; stack.push(n1); }
+            if(cx + 1 < w && black[n2] && !visited[n2]){ visited[n2]=1; stack.push(n2); }
+            if(cy > 0 && black[n3] && !visited[n3]){ visited[n3]=1; stack.push(n3); }
+            if(cy + 1 < h && black[n4] && !visited[n4]){ visited[n4]=1; stack.push(n4); }
+          }
+          if(!best || count > best.count){
+            best = {minX, minY, maxX, maxY, count};
           }
         }
       }
-      if(!found) return null;
-      ctx.putImageData(imgData, 0, 0);
+      if(!best) return null;
 
-      const boxW = maxX - minX + 1;
-      const boxH = maxY - minY + 1;
-      const size = Math.min(boxW, boxH);
-      let x = Math.round(minX + boxW/2 - size/2);
-      let y = Math.round(minY + boxH/2 - size/2);
+      const boxW = best.maxX - best.minX + 1;
+      const boxH = best.maxY - best.minY + 1;
+      const size = Math.max(boxW, boxH);
+      let x = Math.round(best.minX + boxW/2 - size/2);
+      let y = Math.round(best.minY + boxH/2 - size/2);
+      const pad = Math.round(size * 0.02);
+      x -= pad; y -= pad;
+      const paddedSize = size + pad*2;
+      const finalSize = Math.max(1, paddedSize);
       if(x < 0) x = 0;
       if(y < 0) y = 0;
-      if(x + size > w) x = w - size;
-      if(y + size > h) y = h - size;
-      if(size <= 0) return null;
+      if(x + finalSize > w) x = w - finalSize;
+      if(y + finalSize > h) y = h - finalSize;
+      if(finalSize <= 0) return null;
 
-      return {canvas, x, y, size};
+      return {canvas, x, y, size: finalSize};
     }
 
     function extractCell(canvas, x, y, size){
-      const margin = Math.floor(size * 0.12);
+      const margin = Math.floor(size * 0.18);
       const srcSize = Math.max(1, size - margin*2);
       const cellCanvas = document.createElement('canvas');
       cellCanvas.width = 32;
@@ -373,10 +414,35 @@
       ctx.drawImage(canvas, x + margin, y + margin, srcSize, srcSize, 0, 0, 32, 32);
       const imgData = ctx.getImageData(0, 0, 32, 32);
       const data = imgData.data;
-      for(let i=0;i<data.length;i+=4){
-        const lum = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
-        const v = lum < 180 ? 0 : 255;
-        data[i] = data[i+1] = data[i+2] = v;
+      const rowBlack = new Uint16Array(32);
+      const colBlack = new Uint16Array(32);
+      for(let y0=0;y0<32;y0++){
+        for(let x0=0;x0<32;x0++){
+          const i = (y0*32 + x0) * 4;
+          const lum = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+          const v = lum < 170 ? 0 : 255;
+          data[i] = data[i+1] = data[i+2] = v;
+          if(v === 0){
+            rowBlack[y0]++;
+            colBlack[x0]++;
+          }
+        }
+      }
+      for(let y0=0;y0<32;y0++){
+        if(rowBlack[y0] > 24){
+          for(let x0=0;x0<32;x0++){
+            const i = (y0*32 + x0) * 4;
+            data[i] = data[i+1] = data[i+2] = 255;
+          }
+        }
+      }
+      for(let x0=0;x0<32;x0++){
+        if(colBlack[x0] > 24){
+          for(let y0=0;y0<32;y0++){
+            const i = (y0*32 + x0) * 4;
+            data[i] = data[i+1] = data[i+2] = 255;
+          }
+        }
       }
       ctx.putImageData(imgData, 0, 0);
       return cellCanvas;
