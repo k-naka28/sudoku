@@ -3,6 +3,7 @@
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Noto Sans JP,sans-serif}
 h1{font-size:20px;margin:16px 16px 8px}.hint{color:#555;margin:0 16px 16px}
 .wrap{display:grid;gap:16px;padding:0 16px 24px;justify-content:start}
+.gridwrap{overflow-x:auto;max-width:100%}
 
 /* レイアウト（盤面/行合計/ブロック合計/列合計） */
 .gridwrap{display:grid;grid-template-columns:repeat(9,var(--size)) var(--size) 160px;
@@ -44,8 +45,18 @@ h1{font-size:20px;margin:16px 16px 8px}.hint{color:#555;margin:0 16px 16px}
 /* 操作UI */
 .controls{display:grid;gap:10px}.controls .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 button,.io input[type="text"],select,label.selectwrap{padding:10px 14px;border-radius:10px;border:1px solid #cfd7e3;background:#fff;font-weight:600}
+button{min-height:44px}
 button{cursor:pointer}button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .io input[type="text"]{width:360px;max-width:80vw;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .selectwrap{display:flex;align-items:center;gap:8px}.msg{min-height:1.2em;font-weight:700}
 .msg.ok{color:#0b7a33}.msg.warn{color:#b45309}.msg.err{color:#b91c1c}
-@media (max-width:520px){:root{--size:40px}.io input[type="text"]{width:300px}}
+@media (max-width:720px){
+  :root{--size:42px}
+  .wrap{padding:0 12px 20px}
+  .controls .row{flex-direction:column;align-items:stretch}
+  .controls .row button,.controls .row select,.controls .row label.selectwrap{width:100%}
+  .io input[type="text"]{width:100%}
+}
+@media (max-width:520px){
+  :root{--size:36px}
+}
