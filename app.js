@@ -556,7 +556,6 @@
           }
         }
       });
-      await worker.load();
       await worker.loadLanguage('eng');
       await worker.initialize('eng');
       const params = { tessedit_char_whitelist: '123456789' };
