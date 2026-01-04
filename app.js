@@ -267,11 +267,12 @@
         const lowConf = [];
 
         ocrWorker = await createOcrWorker();
+        setMsg('OCRエンジン準備完了。セル解析を開始します...','warn');
         for(let r=0;r<9;r++){
           for(let c=0;c<9;c++){
             if(ocrCanceled) throw new Error('OCR_CANCELED');
             const cellCanvas = extractCell(canvas, x + c*cellSize, y + r*cellSize, cellSize);
-            const {digit, confidence} = await recognizeDigit(ocrWorker, cellCanvas);
+            const {digit, confidence} = await recognizeDigit(ocrWorker, cellCanvas, r, c);
             if(digit >= 1 && digit <= 9){
               grid[r][c] = digit;
               if(Number.isFinite(confidence) && confidence < 60) lowConf.push([r,c]);
@@ -300,7 +301,8 @@
         setMsg(`画像取り込み完了。${note}`,'ok');
       }catch(err){
         if(err && err.message === 'OCR_CANCELED') return;
-        setMsg('画像の解析に失敗しました。別の角度・明るさで試してください。','err');
+        const details = formatOcrError(err);
+        setMsg(`画像の解析に失敗しました。${details}`,'err');
       }finally{
         if(ocrWorker){
           await ocrWorker.terminate();
@@ -565,12 +567,24 @@
       return worker;
     }
 
-    async function recognizeDigit(worker, canvas){
-      const { data } = await worker.recognize(canvas);
+    async function recognizeDigit(worker, canvas, r, c){
+      let data;
+      try{
+        ({ data } = await worker.recognize(canvas));
+      }catch(err){
+        const where = (Number.isFinite(r) && Number.isFinite(c)) ? `（r${r+1}c${c+1}）` : '';
+        throw new Error(`OCR認識に失敗しました${where}: ${err && err.message ? err.message : 'unknown error'}`);
+      }
       const text = (data.text || '').replace(/[^1-9]/g,'');
       const digit = text ? Number(text[0]) : 0;
       const confidence = Number.isFinite(data.confidence) ? data.confidence : 0;
       return {digit, confidence};
+    }
+
+    function formatOcrError(err){
+      if(!err) return '詳細不明。';
+      if(err.message && err.message !== 'OCR_CANCELED') return `原因: ${err.message}`;
+      return '詳細不明。';
     }
   });
 
