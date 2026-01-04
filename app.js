@@ -22,7 +22,9 @@
     s.grid.flat().join(''),
     s.given.flat().map(Number).join(''),
     s.manual.flat().map(Number).join(''),
-    s.auto.flat().map(Number).join('')
+    s.auto.flat().map(Number).join(''),
+    s.ocr.flat().map(Number).join(''),
+    s.lowconf.flat().map(Number).join('')
   ].join('|');
 
   function snapshot(){
@@ -31,7 +33,9 @@
     const given = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('given')));
     const manual= Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('manual')));
     const auto  = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('auto')));
-    return {grid:g, given, manual, auto};
+    const ocr   = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('ocr')));
+    const lowconf = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('lowconf')));
+    return {grid:g, given, manual, auto, ocr, lowconf};
   }
   function applySnapshot(snap){
     const {renderGrid,clearFlags,inputs,wraps} = window.SudokuGrid;
@@ -45,6 +49,8 @@
     for(let r=0;r<9;r++)for(let c=0;c<9;c++){
       if(!snap.given[r][c] && snap.manual[r][c]) wraps[r][c].classList.add('manual');
       if(!snap.given[r][c] && snap.auto[r][c])   wraps[r][c].classList.add('auto');
+      if(!snap.given[r][c] && snap.ocr[r][c])    wraps[r][c].classList.add('ocr');
+      if(!snap.given[r][c] && snap.lowconf[r][c]) wraps[r][c].classList.add('lowconf');
     }
     lastKey = snapKey(snap);
     refresh();
@@ -83,6 +89,7 @@
           e.target.value = (v==='0') ? '' : v;
           if(w.classList.contains('given')) return;
           w.classList.remove('auto');
+          w.classList.remove('ocr','lowconf');
           // ★ヒント色は編集した瞬間に通常色へ
           w.classList.remove('hinted');
           if(e.target.value) w.classList.add('manual');
@@ -103,13 +110,13 @@
       if(!validGrid(g)){ setMsg('<strong>矛盾：</strong> 行/列/ブロック内で重複があります。','err'); return; }
       const before = snapshot();
 
-      const given = mask('given'), manual = mask('manual');
+      const given = mask('given'), manual = mask('manual'), ocr = mask('ocr');
       const res = solve(g);
       if(res.ok){
         renderGrid(res.grid);
         for(let r=0;r<9;r++)for(let c=0;c<9;c++){
-          wraps[r][c].classList.remove('auto','hinted');
-          if(!given[r][c] && !manual[r][c] && res.grid[r][c]) wraps[r][c].classList.add('auto');
+          wraps[r][c].classList.remove('auto','hinted','lowconf');
+          if(!given[r][c] && !manual[r][c] && !ocr[r][c] && res.grid[r][c]) wraps[r][c].classList.add('auto');
         }
         refresh(); setMsg('<strong>解けました。</strong>（赤=ソルバが埋めた数字）','ok');
         pushSnapshot(snapshot());
@@ -194,6 +201,213 @@
 
     // 初期スナップショット
     refresh(); pushSnapshot(snapshot());
+
+    // ---------- OCR 画像取り込み ----------
+    const ocrBtn = $('ocr');
+    const ocrCancel = $('ocrCancel');
+    const ocrFile = $('ocrFile');
+    let ocrWorker = null;
+    let ocrCanceled = false;
+
+    if(ocrBtn && ocrFile){
+      ocrBtn.addEventListener('click', ()=> ocrFile.click());
+      ocrFile.addEventListener('change', async ()=>{
+        const file = ocrFile.files && ocrFile.files[0];
+        ocrFile.value = '';
+        if(!file) return;
+        await runOcr(file);
+      });
+    }
+    if(ocrCancel){
+      ocrCancel.addEventListener('click', async ()=>{
+        ocrCanceled = true;
+        if(ocrWorker){
+          await ocrWorker.terminate();
+          ocrWorker = null;
+        }
+        setOcrBusy(false);
+        setMsg('OCRを中止しました。','warn');
+      });
+    }
+
+    function setOcrBusy(busy){
+      if(ocrBtn) ocrBtn.disabled = busy;
+      if(ocrCancel) ocrCancel.hidden = !busy;
+    }
+
+    async function runOcr(file){
+      if(!window.Tesseract){
+        setMsg('OCRライブラリが読み込めません。','err');
+        return;
+      }
+      setOcrBusy(true);
+      ocrCanceled = false;
+      setMsg('画像を解析中... 0/81','warn');
+
+      try{
+        const img = await loadImage(file);
+        const prep = preprocessImage(img);
+        if(!prep){
+          setMsg('盤面の検出に失敗しました。','err');
+          return;
+        }
+
+        const {canvas, x, y, size} = prep;
+        const cellSize = Math.floor(size / 9);
+        const grid = Array.from({length:9},()=>Array(9).fill(0));
+        const lowConf = [];
+
+        ocrWorker = await createOcrWorker();
+        for(let r=0;r<9;r++){
+          for(let c=0;c<9;c++){
+            if(ocrCanceled) throw new Error('OCR_CANCELED');
+            const cellCanvas = extractCell(canvas, x + c*cellSize, y + r*cellSize, cellSize);
+            const {digit, confidence} = await recognizeDigit(ocrWorker, cellCanvas);
+            if(digit >= 1 && digit <= 9){
+              grid[r][c] = digit;
+              if(Number.isFinite(confidence) && confidence < 60) lowConf.push([r,c]);
+            }
+            const idx = r*9 + c + 1;
+            setMsg(`画像を解析中... ${idx}/81`,'warn');
+          }
+        }
+        await ocrWorker.terminate();
+        ocrWorker = null;
+
+        if(ocrCanceled) return;
+
+        suspendHistory = true;
+        renderGrid(grid);
+        clearFlags();
+        for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+          if(grid[r][c]) wraps[r][c].classList.add('ocr');
+        }
+        for(const [r,c] of lowConf) wraps[r][c].classList.add('lowconf');
+        refresh();
+        suspendHistory = false;
+        pushSnapshot(snapshot());
+
+        const note = lowConf.length ? `低信頼セル: ${lowConf.length}（オレンジ枠）` : '低信頼セルなし';
+        setMsg(`画像取り込み完了。${note}`,'ok');
+      }catch(err){
+        if(err && err.message === 'OCR_CANCELED') return;
+        setMsg('画像の解析に失敗しました。','err');
+      }finally{
+        if(ocrWorker){
+          await ocrWorker.terminate();
+          ocrWorker = null;
+        }
+        setOcrBusy(false);
+      }
+    }
+
+    function loadImage(file){
+      return new Promise((resolve, reject)=>{
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = ()=>{
+          URL.revokeObjectURL(url);
+          resolve(img);
+        };
+        img.onerror = ()=> reject(new Error('IMAGE_LOAD_FAILED'));
+        img.src = url;
+      });
+    }
+
+    function preprocessImage(img){
+      const maxSide = 900;
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+
+      let minX=w, minY=h, maxX=0, maxY=0, found=false;
+      for(let y0=0;y0<h;y0++){
+        for(let x0=0;x0<w;x0++){
+          const i = (y0*w + x0) * 4;
+          const r = data[i], g = data[i+1], b = data[i+2];
+          const lum = 0.299*r + 0.587*g + 0.114*b;
+          const v = lum < 200 ? 0 : 255;
+          data[i] = data[i+1] = data[i+2] = v;
+          if(v === 0){
+            found = true;
+            if(x0 < minX) minX = x0;
+            if(x0 > maxX) maxX = x0;
+            if(y0 < minY) minY = y0;
+            if(y0 > maxY) maxY = y0;
+          }
+        }
+      }
+      if(!found) return null;
+      ctx.putImageData(imgData, 0, 0);
+
+      const boxW = maxX - minX + 1;
+      const boxH = maxY - minY + 1;
+      const size = Math.min(boxW, boxH);
+      let x = Math.round(minX + boxW/2 - size/2);
+      let y = Math.round(minY + boxH/2 - size/2);
+      if(x < 0) x = 0;
+      if(y < 0) y = 0;
+      if(x + size > w) x = w - size;
+      if(y + size > h) y = h - size;
+      if(size <= 0) return null;
+
+      return {canvas, x, y, size};
+    }
+
+    function extractCell(canvas, x, y, size){
+      const margin = Math.floor(size * 0.12);
+      const srcSize = Math.max(1, size - margin*2);
+      const cellCanvas = document.createElement('canvas');
+      cellCanvas.width = 32;
+      cellCanvas.height = 32;
+      const ctx = cellCanvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, 32, 32);
+      ctx.drawImage(canvas, x + margin, y + margin, srcSize, srcSize, 0, 0, 32, 32);
+      const imgData = ctx.getImageData(0, 0, 32, 32);
+      const data = imgData.data;
+      for(let i=0;i<data.length;i+=4){
+        const lum = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+        const v = lum < 180 ? 0 : 255;
+        data[i] = data[i+1] = data[i+2] = v;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      return cellCanvas;
+    }
+
+    async function createOcrWorker(){
+      const worker = window.Tesseract.createWorker({
+        logger: m=>{
+          if(!ocrCanceled && m.status === 'recognizing text'){
+            setMsg(`OCR解析中... ${Math.round((m.progress || 0) * 100)}%`,'warn');
+          }
+        }
+      });
+      await worker.load();
+      await worker.loadLanguage('eng');
+      await worker.initialize('eng');
+      const params = { tessedit_char_whitelist: '123456789' };
+      if(window.Tesseract.PSM && Number.isFinite(window.Tesseract.PSM.SINGLE_CHAR)){
+        params.tessedit_pageseg_mode = window.Tesseract.PSM.SINGLE_CHAR;
+      }
+      await worker.setParameters(params);
+      return worker;
+    }
+
+    async function recognizeDigit(worker, canvas){
+      const { data } = await worker.recognize(canvas);
+      const text = (data.text || '').replace(/[^1-9]/g,'');
+      const digit = text ? Number(text[0]) : 0;
+      const confidence = Number.isFinite(data.confidence) ? data.confidence : 0;
+      return {digit, confidence};
+    }
   });
 
   // ---------- ヒント計算（1手適用用） ----------

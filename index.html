@@ -10,7 +10,7 @@
 <body>
   <header>
     <h1>Sudoku（ヒント1手適用・Undo/Redo対応）</h1>
-    <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。ヒントは押すと<strong>1手が盤面に入力</strong>されます。</p>
+    <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。画像取り込みは黒で反映、低信頼はオレンジ枠。ヒントは押すと<strong>1手が盤面に入力</strong>されます。</p>
   </header>
 
   <main>
@@ -33,6 +33,8 @@
           <button id="check">矛盾チェック</button>
           <button id="clear">全消去</button>
           <button id="demo">例題</button>
+          <button id="ocr">画像取り込み</button>
+          <button id="ocrCancel" hidden>OCR中止</button>
           <label class="selectwrap">手入力の色:
             <select id="manualColor">
               <option value="blue" selected>青</option>
@@ -45,6 +47,7 @@
           <button id="load">読み込む（固定）</button>
           <button id="export">書き出す</button>
         </div>
+        <input id="ocrFile" type="file" accept="image/*" hidden />
         <div id="msg" class="msg" aria-live="polite"></div>
       </section>
     </div>
@@ -71,6 +74,7 @@
   <script defer src="./hints/quads.js"></script>
   <script defer src="./hints/swordfish.js"></script>
 
+  <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
   <script defer src="./app.js"></script>
 </body>
 </html>
