@@ -202,24 +202,6 @@
     // 初期スナップショット
     refresh(); pushSnapshot(snapshot());
 
-    // ---------- OCR 画像取り込み ----------
-    if(window.SudokuOCR){
-      window.SudokuOCR.init({
-        setMsg,
-        onApply: (grid, lowConf)=>{
-          suspendHistory = true;
-          renderGrid(grid);
-          clearFlags();
-          for(let r=0;r<9;r++)for(let c=0;c<9;c++){
-            if(grid[r][c]) wraps[r][c].classList.add('ocr');
-          }
-          for(const [r,c] of lowConf) wraps[r][c].classList.add('lowconf');
-          refresh();
-          suspendHistory = false;
-          pushSnapshot(snapshot());
-        }
-      });
-    }
   });
 
   // ---------- ヒント計算（1手適用用） ----------
