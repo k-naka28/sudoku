@@ -221,7 +221,7 @@
     if(ocrCancel){
       ocrCancel.addEventListener('click', async ()=>{
         ocrCanceled = true;
-        if(ocrWorker){
+        if(ocrWorker && typeof ocrWorker.terminate === 'function'){
           await ocrWorker.terminate();
           ocrWorker = null;
         }
@@ -281,8 +281,10 @@
             setMsg(`画像を解析中... ${idx}/81`,'warn');
           }
         }
-        await ocrWorker.terminate();
-        ocrWorker = null;
+        if(ocrWorker && typeof ocrWorker.terminate === 'function'){
+          await ocrWorker.terminate();
+          ocrWorker = null;
+        }
 
         if(ocrCanceled) return;
 
@@ -304,7 +306,7 @@
         const details = formatOcrError(err);
         setMsg(`画像の解析に失敗しました。${details}`,'err');
       }finally{
-        if(ocrWorker){
+        if(ocrWorker && typeof ocrWorker.terminate === 'function'){
           await ocrWorker.terminate();
           ocrWorker = null;
         }
@@ -549,20 +551,38 @@
     }
 
     async function createOcrWorker(){
-      const worker = window.Tesseract.createWorker({
+      const T = window.Tesseract;
+      if(!T || typeof T.recognize !== 'function'){
+        throw new Error('Tesseract.js が読み込めません。');
+      }
+      const params = { tessedit_char_whitelist: '123456789' };
+      if(T.PSM && Number.isFinite(T.PSM.SINGLE_CHAR)){
+        params.tessedit_pageseg_mode = T.PSM.SINGLE_CHAR;
+      }
+
+      if(typeof T.createWorker !== 'function'){
+        return {
+          recognize: canvas => T.recognize(canvas, 'eng', params)
+        };
+      }
+
+      const worker = T.createWorker({
         logger: m=>{
           if(!ocrCanceled && m.status === 'recognizing text'){
             setMsg(`OCR解析中... ${Math.round((m.progress || 0) * 100)}%`,'warn');
           }
         }
       });
+      if(typeof worker.loadLanguage !== 'function' || typeof worker.initialize !== 'function'){
+        return {
+          recognize: canvas => T.recognize(canvas, 'eng', params)
+        };
+      }
       await worker.loadLanguage('eng');
       await worker.initialize('eng');
-      const params = { tessedit_char_whitelist: '123456789' };
-      if(window.Tesseract.PSM && Number.isFinite(window.Tesseract.PSM.SINGLE_CHAR)){
-        params.tessedit_pageseg_mode = window.Tesseract.PSM.SINGLE_CHAR;
+      if(typeof worker.setParameters === 'function'){
+        await worker.setParameters(params);
       }
-      await worker.setParameters(params);
       return worker;
     }
 
