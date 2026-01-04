@@ -353,48 +353,11 @@
       }
       ctx.putImageData(imgData, 0, 0);
 
-      const visited = new Uint8Array(w*h);
-      let best = null;
-      const stack = [];
-      for(let y0=0;y0<h;y0++){
-        for(let x0=0;x0<w;x0++){
-          const idx = y0*w + x0;
-          if(!black[idx] || visited[idx]) continue;
-          let minX=x0, minY=y0, maxX=x0, maxY=y0, count=0;
-          visited[idx] = 1;
-          stack.push(idx);
-          while(stack.length){
-            const cur = stack.pop();
-            const cy = Math.floor(cur / w);
-            const cx = cur - cy * w;
-            count++;
-            if(cx < minX) minX = cx;
-            if(cx > maxX) maxX = cx;
-            if(cy < minY) minY = cy;
-            if(cy > maxY) maxY = cy;
-
-            const n1 = cur - 1, n2 = cur + 1, n3 = cur - w, n4 = cur + w;
-            if(cx > 0 && black[n1] && !visited[n1]){ visited[n1]=1; stack.push(n1); }
-            if(cx + 1 < w && black[n2] && !visited[n2]){ visited[n2]=1; stack.push(n2); }
-            if(cy > 0 && black[n3] && !visited[n3]){ visited[n3]=1; stack.push(n3); }
-            if(cy + 1 < h && black[n4] && !visited[n4]){ visited[n4]=1; stack.push(n4); }
-          }
-          const boxW = maxX - minX + 1;
-          const boxH = maxY - minY + 1;
-          const area = boxW * boxH;
-          const aspect = boxW > boxH ? boxW / boxH : boxH / boxW;
-          const density = count / area;
-          const minSide = Math.min(boxW, boxH);
-          const sizeScore = Math.min(boxW, boxH) / Math.max(w, h);
-          const aspectScore = Math.max(0, 1.3 - aspect);
-          const densityScore = (density >= 0.02 && density <= 0.2) ? 1 : 0;
-          const score = sizeScore * 2 + aspectScore + densityScore;
-          if(!best || score > best.score){
-            best = {minX, minY, maxX, maxY, count, score, minSide};
-          }
-        }
+      let best = findBestComponent(black, w, h, {densityMin:0.015, densityMax:0.25, minSideRatio:0.2});
+      if(!best){
+        best = findGridByEdges(gray, w, h);
       }
-      if(!best || best.minSide < Math.min(w, h) * 0.2) return null;
+      if(!best) return null;
 
       const boxW = best.maxX - best.minX + 1;
       const boxH = best.maxY - best.minY + 1;
@@ -412,6 +375,87 @@
       if(finalSize <= 0) return null;
 
       return {canvas, x, y, size: finalSize};
+    }
+
+    function findBestComponent(mask, w, h, opts){
+      const visited = new Uint8Array(w*h);
+      let best = null;
+      const stack = [];
+      const minSideLimit = Math.min(w, h) * (opts.minSideRatio || 0.2);
+      const densityMin = opts.densityMin ?? 0.01;
+      const densityMax = opts.densityMax ?? 0.2;
+      for(let y0=0;y0<h;y0++){
+        for(let x0=0;x0<w;x0++){
+          const idx = y0*w + x0;
+          if(!mask[idx] || visited[idx]) continue;
+          let minX=x0, minY=y0, maxX=x0, maxY=y0, count=0;
+          visited[idx] = 1;
+          stack.push(idx);
+          while(stack.length){
+            const cur = stack.pop();
+            const cy = Math.floor(cur / w);
+            const cx = cur - cy * w;
+            count++;
+            if(cx < minX) minX = cx;
+            if(cx > maxX) maxX = cx;
+            if(cy < minY) minY = cy;
+            if(cy > maxY) maxY = cy;
+
+            const n1 = cur - 1, n2 = cur + 1, n3 = cur - w, n4 = cur + w;
+            if(cx > 0 && mask[n1] && !visited[n1]){ visited[n1]=1; stack.push(n1); }
+            if(cx + 1 < w && mask[n2] && !visited[n2]){ visited[n2]=1; stack.push(n2); }
+            if(cy > 0 && mask[n3] && !visited[n3]){ visited[n3]=1; stack.push(n3); }
+            if(cy + 1 < h && mask[n4] && !visited[n4]){ visited[n4]=1; stack.push(n4); }
+          }
+          const boxW = maxX - minX + 1;
+          const boxH = maxY - minY + 1;
+          const minSide = Math.min(boxW, boxH);
+          if(minSide < minSideLimit) continue;
+          const area = boxW * boxH;
+          const aspect = boxW > boxH ? boxW / boxH : boxH / boxW;
+          const density = count / area;
+          const sizeScore = minSide / Math.max(w, h);
+          const aspectScore = Math.max(0, 1.3 - aspect);
+          const densityScore = (density >= densityMin && density <= densityMax) ? 1 : 0;
+          const score = sizeScore * 2 + aspectScore + densityScore;
+          if(!best || score > best.score){
+            best = {minX, minY, maxX, maxY, count, score};
+          }
+        }
+      }
+      return best;
+    }
+
+    function findGridByEdges(gray, w, h){
+      const mag = new Uint16Array(w*h);
+      let sum = 0;
+      let sum2 = 0;
+      let count = 0;
+      for(let y0=1;y0<h-1;y0++){
+        for(let x0=1;x0<w-1;x0++){
+          const i = y0*w + x0;
+          const g00 = gray[i - w - 1], g01 = gray[i - w], g02 = gray[i - w + 1];
+          const g10 = gray[i - 1],     g12 = gray[i + 1];
+          const g20 = gray[i + w - 1], g21 = gray[i + w], g22 = gray[i + w + 1];
+          const gx = -g00 - 2*g10 - g20 + g02 + 2*g12 + g22;
+          const gy = -g00 - 2*g01 - g02 + g20 + 2*g21 + g22;
+          const m = Math.abs(gx) + Math.abs(gy);
+          mag[i] = m;
+          sum += m;
+          sum2 += m * m;
+          count++;
+        }
+      }
+      if(count === 0) return null;
+      const mean = sum / count;
+      const variance = Math.max(0, sum2 / count - mean * mean);
+      const std = Math.sqrt(variance);
+      const thr = Math.max(40, Math.min(200, mean + std * 0.8));
+      const edge = new Uint8Array(w*h);
+      for(let i=0;i<mag.length;i++){
+        if(mag[i] > thr) edge[i] = 1;
+      }
+      return findBestComponent(edge, w, h, {densityMin:0.002, densityMax:0.08, minSideRatio:0.2});
     }
 
     function extractCell(canvas, x, y, size){
