@@ -1,6 +1,6 @@
 // ui/reasons.js
 (function(w){
-  const rc = (r,c)=>`行${r+1} 列${c+1}`;
+  const rc = (r,c)=>`${c+1}${String.fromCharCode(65+r)}`;
   const rcTag = (r,c)=>`<code>${rc(r,c)}</code>`;
   const boxName = b => `ブロック${b+1}`;
   const listRC = (cells, max=6)=>{

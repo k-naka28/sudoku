@@ -9,13 +9,15 @@
 </head>
 <body>
   <header>
-    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.17</span></h1>
+    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.18</span></h1>
     <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。<strong>埋める</strong>は確定手を入力、<strong>候補を減らす</strong>は 1 回で 1 候補を削除し、次の削除ヒントを表示します。</p>
   </header>
 
   <main>
     <div class="wrap">
       <div class="gridwrap">
+        <div id="colLabels" class="col-labels" aria-hidden="true"></div>
+        <div id="rowLabels" class="row-labels" aria-hidden="true"></div>
         <div id="board" class="board" aria-label="数独盤面"></div>
         <div id="rowSums" class="row-sums" aria-label="行の総和"></div>
         <aside id="blockPane" class="right-panel" aria-label="検算パネル">
@@ -57,6 +59,7 @@
     <details class="history">
       <summary>更新履歴</summary>
       <ul>
+        <li><strong>1.18</strong> 盤面の上/左に座標ラベル（1〜9 / A〜I）を表示</li>
         <li><strong>1.17</strong> 候補削除のたびに「次の削除ヒント」を表示／座標表示を確実に可視化</li>
         <li><strong>1.16</strong> マス座標（将棋盤式の英数字）を盤面に表示</li>
         <li><strong>1.15</strong> 「埋める」と「候補を減らす」を分離（候補削除は1回=1候補）</li>
@@ -90,6 +93,6 @@
   <script defer src="./hints/swordfish.js"></script>
   <script defer src="./hints/jellyfish.js"></script>
 
-  <script defer src="./app.js?v=1.17"></script>
+  <script defer src="./app.js?v=1.18"></script>
 </body>
 </html>

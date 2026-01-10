@@ -3,7 +3,7 @@
 (function(){
   // ---------- ユーティリティ ----------
   const $ = id => document.getElementById(id);
-  const coord = (r,c)=>`${9-c}${String.fromCharCode(97+r)}`;
+  const coord = (r,c)=>`${c+1}${String.fromCharCode(65+r)}`;
   const rc = (r,c)=>coord(r,c);
   const rcTag = (r,c)=>`<code>${rc(r,c)}</code>`;
 
@@ -33,11 +33,9 @@
   };
   let pendingElims = null;
   let pendingMove = null;
-  let pendingTotal = 0;
   const clearPendingElims = ()=>{
     pendingElims = null;
     pendingMove = null;
-    pendingTotal = 0;
   };
 
   // ---------- 履歴（Undo/Redo） ----------
@@ -112,6 +110,22 @@
     let hintActive = false;
     let candidatesOn = false;
 
+    function initAxisLabels(){
+      const col = $('colLabels');
+      const row = $('rowLabels');
+      if(!col || !row) return;
+      col.innerHTML = '';
+      row.innerHTML = '';
+      for(let c=0;c<9;c++){
+        const d=document.createElement('div'); d.className='label'; d.textContent=String(c+1);
+        col.appendChild(d);
+      }
+      for(let r=0;r<9;r++){
+        const d=document.createElement('div'); d.className='label'; d.textContent=String.fromCharCode(65+r);
+        row.appendChild(d);
+      }
+    }
+
     function clearHintMarks(){
       for(let r=0;r<9;r++)for(let c=0;c<9;c++){
         wraps[r][c].classList.remove('hint-target','hint-focus','hint-elim');
@@ -162,6 +176,7 @@
 
     // 盤面生成 & 入力イベント
     initBoard($('board'));
+    initAxisLabels();
     for(let r=0;r<9;r++){
       for(let c=0;c<9;c++){
         const w = wraps[r][c];
@@ -229,9 +244,9 @@
         }
         pendingMove = move;
         pendingElims = move.eliminations.slice();
-        pendingTotal = pendingElims.length;
       }
 
+      const currentMove = pendingMove;
       const applied = pendingElims.shift();
       const added = applyEliminations([applied]);
       if(added) pushSnapshot(snapshot());
@@ -239,26 +254,25 @@
       const candAfter = buildCandidatesWithBans(g);
       const placeAfter = computePlaceHint(candAfter);
 
-      let previewMove = null;
-      let previewElim = null;
+      let nextMove = null;
+      let nextElim = null;
       if(pendingElims && pendingElims.length){
-        previewMove = pendingMove;
-        previewElim = pendingElims[0];
+        nextMove = pendingMove;
+        nextElim = pendingElims[0];
       }else{
-        const nextMove = computeElimHint(candAfter);
-        if(nextMove){
-          pendingMove = nextMove;
-          pendingElims = nextMove.eliminations.slice();
-          pendingTotal = pendingElims.length;
-          previewMove = nextMove;
-          previewElim = pendingElims[0];
+        const nm = computeElimHint(candAfter);
+        if(nm){
+          pendingMove = nm;
+          pendingElims = nm.eliminations.slice();
+          nextMove = nm;
+          nextElim = pendingElims[0];
         }else{
           clearPendingElims();
         }
       }
 
-      if(previewMove && previewElim){
-        const displayMove = {...previewMove, action:'eliminate', eliminations:[previewElim]};
+      if(nextMove && nextElim){
+        const displayMove = {...nextMove, action:'eliminate', eliminations:[nextElim]};
         if(placeAfter){
           displayMove.placeTarget = true;
           displayMove.r = placeAfter.r; displayMove.c = placeAfter.c; displayMove.d = placeAfter.d;
@@ -269,10 +283,11 @@
       }
 
       const baseMsg = `<div><strong>候補削除：</strong>${rcTag(applied.r,applied.c)} の <b>${applied.d}</b> を除外</div>`;
-      const nextMsg = previewElim ? `<div><strong>次の削除ヒント：</strong>${rcTag(previewElim.r,previewElim.c)} の <b>${previewElim.d}</b></div>` : '<div><strong>次の削除ヒント：</strong>なし</div>';
+      const currReason = currentMove ? currentMove.reason : '';
+      const nextMsg = nextElim ? `<div><strong>次の削除ヒント：</strong>${rcTag(nextElim.r,nextElim.c)} の <b>${nextElim.d}</b></div>` : '<div><strong>次の削除ヒント：</strong>なし</div>';
+      const nextReason = (nextMove && nextMove !== currentMove) ? nextMove.reason : '';
       const placeMsg = placeAfter ? `<div><strong>確定候補：</strong>${rcTag(placeAfter.r,placeAfter.c)} = <b>${placeAfter.d}</b></div>` : '';
-      const reason = previewMove ? previewMove.reason : (pendingMove ? pendingMove.reason : '');
-      setMsg(baseMsg + nextMsg + placeMsg + reason, 'ok');
+      setMsg(baseMsg + currReason + nextMsg + nextReason + placeMsg, 'ok');
     });
     candBtn.addEventListener('click', ()=>{
       candidatesOn = !candidatesOn;
