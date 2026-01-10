@@ -33,9 +33,11 @@
   };
   let pendingElims = null;
   let pendingMove = null;
+  let resetReduceUI = ()=>{};
   const clearPendingElims = ()=>{
     pendingElims = null;
     pendingMove = null;
+    resetReduceUI();
   };
 
   // ---------- 履歴（Undo/Redo） ----------
@@ -206,6 +208,10 @@
 
     // ------ ボタン群 ------
     const candBtn = $('toggleCandidates');
+    const reduceBtn = $('reduceCandidates');
+    let reduceMode = 'hint';
+    const setReduceLabel = ()=>{ reduceBtn.textContent = (reduceMode === 'hint') ? 'ヒントを減らす' : '候補を減らす'; };
+    resetReduceUI = ()=>{ reduceMode = 'hint'; setReduceLabel(); };
     const setCandLabel = ()=>{ candBtn.textContent = candidatesOn ? '候補:ON' : '候補:OFF'; };
     function buildCandidatesWithBans(g){
       const base = window.SudokuHints.buildCandidates(g);
@@ -228,72 +234,47 @@
         return;
       }
       exitHintMode();
-      const cand = buildCandidatesWithBans(g);
-      const place = computePlaceHint(cand);
-      if(place){
-        showHintMode(cand, {...place, placeTarget:true});
-        setMsg(`<div><strong>確定候補：</strong>${rcTag(place.r,place.c)} = <b>${place.d}</b></div>` + place.reason, 'ok');
+      if(reduceMode === 'apply'){
+        if(!pendingElims || pendingElims.length===0){
+          clearPendingElims();
+          setMsg('削除ヒントがありません。','warn');
+          return;
+        }
+        const applied = pendingElims.shift();
+        const added = applyEliminations([applied]);
+        if(added) pushSnapshot(snapshot());
+        clearPendingElims();
+        const candAfter = buildCandidatesWithBans(g);
+        showHintMode(candAfter, {action:'eliminate', eliminations:[applied]});
+        setMsg(`<div><strong>候補削除：</strong>${rcTag(applied.r,applied.c)} の <b>${applied.d}</b> を除外</div>`, 'ok');
         return;
       }
 
-      if(!pendingElims || pendingElims.length===0){
-        const move = computeElimHint(cand);
-        if(!move){
-          setMsg('今は候補削除なし。','warn');
-          return;
-        }
-        pendingMove = move;
-        pendingElims = move.eliminations.slice();
+      const cand = buildCandidatesWithBans(g);
+      const move = computeElimHint(cand);
+      if(!move){
+        setMsg('今は削除ヒントなし。','warn');
+        return;
       }
-
-      const currentMove = pendingMove;
-      const applied = pendingElims.shift();
-      const added = applyEliminations([applied]);
-      if(added) pushSnapshot(snapshot());
-
-      const candAfter = buildCandidatesWithBans(g);
-      const placeAfter = computePlaceHint(candAfter);
-
-      let nextMove = null;
-      let nextElim = null;
-      if(pendingElims && pendingElims.length){
-        nextMove = pendingMove;
-        nextElim = pendingElims[0];
-      }else{
-        const nm = computeElimHint(candAfter);
-        if(nm){
-          pendingMove = nm;
-          pendingElims = nm.eliminations.slice();
-          nextMove = nm;
-          nextElim = pendingElims[0];
-        }else{
-          clearPendingElims();
-        }
+      pendingMove = move;
+      const elim = move.eliminations[0];
+      pendingElims = elim ? [elim] : [];
+      if(!elim){
+        setMsg('今は削除ヒントなし。','warn');
+        return;
       }
-
-      if(nextMove && nextElim){
-        const displayMove = {...nextMove, action:'eliminate', eliminations:[nextElim]};
-        if(placeAfter){
-          displayMove.placeTarget = true;
-          displayMove.r = placeAfter.r; displayMove.c = placeAfter.c; displayMove.d = placeAfter.d;
-        }
-        showHintMode(candAfter, displayMove);
-      }else if(placeAfter){
-        showHintMode(candAfter, {...placeAfter, placeTarget:true});
-      }
-
-      const baseMsg = `<div><strong>候補削除：</strong>${rcTag(applied.r,applied.c)} の <b>${applied.d}</b> を除外</div>`;
-      const currReason = currentMove ? currentMove.reason : '';
-      const nextMsg = nextElim ? `<div><strong>次の削除ヒント：</strong>${rcTag(nextElim.r,nextElim.c)} の <b>${nextElim.d}</b></div>` : '<div><strong>次の削除ヒント：</strong>なし</div>';
-      const nextReason = (nextMove && nextMove !== currentMove) ? nextMove.reason : '';
-      const placeMsg = placeAfter ? `<div><strong>確定候補：</strong>${rcTag(placeAfter.r,placeAfter.c)} = <b>${placeAfter.d}</b></div>` : '';
-      setMsg(baseMsg + currReason + nextMsg + nextReason + placeMsg, 'ok');
+      const displayMove = {...move, action:'eliminate', eliminations:[elim]};
+      showHintMode(cand, displayMove);
+      reduceMode = 'apply';
+      setReduceLabel();
+      setMsg(`<div><strong>削除ヒント：</strong>${rcTag(elim.r,elim.c)} の <b>${elim.d}</b></div>` + move.reason, 'ok');
     });
     candBtn.addEventListener('click', ()=>{
       candidatesOn = !candidatesOn;
       setCandLabel();
       updateCandidates(readGrid());
     });
+    setReduceLabel();
     setCandLabel();
 
     $('solve').addEventListener('click', ()=>{
@@ -331,7 +312,7 @@
       const cand = buildCandidatesWithBans(hintGrid);
       const move = computePlaceHint(cand);
       if(!move){
-        setMsg('今は確定ヒントなし。候補を減らすを使ってください。','warn');
+        setMsg('今は確定ヒントなし。ヒントを減らすを使ってください。','warn');
         return;
       }
       const {r,c,d,reason} = move;
