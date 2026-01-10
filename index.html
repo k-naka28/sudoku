@@ -9,7 +9,7 @@
 </head>
 <body>
   <header>
-    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.24</span></h1>
+    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.25</span></h1>
     <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。<strong>埋める</strong>は確定手を入力、<strong>ヒントを表示</strong>で削除ヒント→<strong>候補を減らす</strong>で適用。</p>
   </header>
 
@@ -59,6 +59,7 @@
     <details class="history">
       <summary>更新履歴</summary>
       <ul>
+        <li><strong>1.25</strong> Hidden Single の対象ユニット（行/列/ブロック）を緑で強調</li>
         <li><strong>1.24</strong> 解説の行列・座標表記を Excel 形式に修正（c1 表記の解消）</li>
         <li><strong>1.23</strong> 削除ヒントが出ない場合は「ヒントを表示」を無効化</li>
         <li><strong>1.22</strong> 座標表記を Excel 形式（列A..I／行1..9、例: A5）に統一</li>
@@ -99,6 +100,6 @@
   <script defer src="./hints/swordfish.js"></script>
   <script defer src="./hints/jellyfish.js"></script>
 
-  <script defer src="./app.js?v=1.24"></script>
+  <script defer src="./app.js?v=1.25"></script>
 </body>
 </html>
