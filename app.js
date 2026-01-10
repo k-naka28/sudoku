@@ -78,6 +78,7 @@
     const {validGrid,solve} = window.SudokuCore;
     const R = window.Reasons;
     let hintActive = false;
+    let candidatesOn = false;
 
     function clearHintMarks(){
       for(let r=0;r<9;r++)for(let c=0;c<9;c++){
@@ -88,7 +89,7 @@
       if(!hintActive) return;
       hintActive = false;
       clearHintMarks();
-      window.SudokuGrid.hideCandidates();
+      if(!candidatesOn) window.SudokuGrid.hideCandidates();
     }
     function markCells(cells, cls){
       if(!cells) return;
@@ -106,7 +107,6 @@
     }
     function showHintMode(cand, move){
       hintActive = true;
-      window.SudokuGrid.showCandidates(cand, readGrid(), move.eliminations);
       clearHintMarks();
       if(move.action === 'place' && Number.isInteger(move.r) && Number.isInteger(move.c)){
         wraps[move.r][move.c].classList.add('hint-target');
@@ -149,6 +149,20 @@
     ({blockCells,rowCells,colCells} = window.SudokuSums.initSums($('rowSums'),$('colSums'),$('blockSums')));
 
     // ------ ボタン群 ------
+    const candBtn = $('toggleCandidates');
+    const setCandLabel = ()=>{ candBtn.textContent = candidatesOn ? '候補:ON' : '候補:OFF'; };
+    function updateCandidates(g){
+      if(!candidatesOn){ window.SudokuGrid.hideCandidates(); return; }
+      const cand = window.SudokuHints.buildCandidates(g);
+      window.SudokuGrid.showCandidates(cand, g);
+    }
+    candBtn.addEventListener('click', ()=>{
+      candidatesOn = !candidatesOn;
+      setCandLabel();
+      updateCandidates(readGrid());
+    });
+    setCandLabel();
+
     $('solve').addEventListener('click', ()=>{
       exitHintMode();
       const g = readGrid();
@@ -185,7 +199,7 @@
       if(move.action === 'eliminate'){
         showHintMode(cand, move);
         const count = move.eliminations ? move.eliminations.length : 0;
-        setMsg(`<div><strong>消去ヒント：</strong>候補を ${count} 箇所削除できます。</div>` + reason + '<div><small>※候補はヒント時点の表示（次の操作で非表示）</small></div>', 'ok');
+        setMsg(`<div><strong>消去ヒント：</strong>候補を ${count} 箇所削除できます。</div>` + reason, 'ok');
         return;
       }
       if(wraps[r][c].classList.contains('given')){ setMsg('そのマスは固定（黒）です。','warn'); return; }
@@ -200,7 +214,7 @@
       suspendHistory = false;
 
       pushSnapshot(snapshot());
-      setMsg(`<div><strong>ヒント適用：</strong>${rcTag(r,c)} に <b>${d}</b></div>` + reason + '<div><small>※候補はヒント時点の表示（次の操作で非表示）</small></div>', 'ok');
+      setMsg(`<div><strong>ヒント適用：</strong>${rcTag(r,c)} に <b>${d}</b></div>` + reason, 'ok');
     });
 
     $('undo').addEventListener('click', ()=>{
@@ -258,7 +272,11 @@
     }
 
     function mask(cls){ return Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains(cls))) }
-    function refresh(){ const g = window.SudokuGrid.readGrid(); window.SudokuSums.updateSums(g, rowCells, colCells, blockCells); }
+    function refresh(){
+      const g = window.SudokuGrid.readGrid();
+      window.SudokuSums.updateSums(g, rowCells, colCells, blockCells);
+      updateCandidates(g);
+    }
 
     // 初期スナップショット
     refresh(); pushSnapshot(snapshot());

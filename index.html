@@ -9,7 +9,7 @@
 </head>
 <body>
   <header>
-    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.11</span></h1>
+    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.12</span></h1>
     <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。ヒントは<strong>確定手は入力</strong>、確定できない場合は<strong>候補消去を提示</strong>します。</p>
   </header>
 
@@ -28,6 +28,7 @@
         <div class="row">
           <button id="solve" class="primary">解く</button>
           <button id="doHint">ヒント（1手）</button>
+          <button id="toggleCandidates">候補:OFF</button>
           <button id="undo" disabled>戻す</button>
           <button id="redo" disabled>進む</button>
           <button id="check">矛盾チェック</button>
@@ -55,6 +56,7 @@
     <details class="history">
       <summary>更新履歴</summary>
       <ul>
+        <li><strong>1.12</strong> 候補表示のON/OFFボタン追加（ヒント連動を廃止）</li>
         <li><strong>1.11</strong> 候補消去ヒントを追加／Jellyfish 追加／Locked Candidates の説明強化／確定手を優先表示</li>
         <li><strong>1.10</strong> ヒント候補の表示（ヒント時のみ）</li>
       </ul>
@@ -79,6 +81,6 @@
   <script defer src="./hints/swordfish.js"></script>
   <script defer src="./hints/jellyfish.js"></script>
 
-  <script defer src="./app.js?v=1.11"></script>
+  <script defer src="./app.js?v=1.12"></script>
 </body>
 </html>
