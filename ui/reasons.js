@@ -207,6 +207,55 @@
           ${resultLine(h)}
         </ol>`;
     },
+    skyscraper: h => {
+      const base = listRC(h.baseCells, 4);
+      const roof = listRC(h.roofCells, 4);
+      const elim = listRC(h.eliminated, 6);
+      if(h.kind==='skyscraper-row')
+        return `
+          <div><strong>Skyscraper（行基準／数字 ${h.d}）</strong></div>
+          <ol>
+            <li><b>観察：</b> 2 行の ${h.d} 候補が「共有列＋屋根2マス」の形（ベース：${base}／屋根：${roof}）。</li>
+            <li><b>理由：</b> 共有列に ${h.d} が入らないなら、屋根のどちらかに必ず入る。</li>
+            <li><b>操作：</b> 屋根2マスの両方から見えるマスから <b>${h.d}</b> を削除（例：${elim}）。</li>
+            ${resultLine(h)}
+          </ol>`;
+      return `
+        <div><strong>Skyscraper（列基準／数字 ${h.d}）</strong></div>
+        <ol>
+          <li><b>観察：</b> 2 列の ${h.d} 候補が「共有行＋屋根2マス」の形（ベース：${base}／屋根：${roof}）。</li>
+          <li><b>理由：</b> 共有行に ${h.d} が入らないなら、屋根のどちらかに必ず入る。</li>
+          <li><b>操作：</b> 屋根2マスの両方から見えるマスから <b>${h.d}</b> を削除（例：${elim}）。</li>
+          ${resultLine(h)}
+        </ol>`;
+    },
+    kite: h => {
+      const base = listRC(h.baseCells, 4);
+      const roof = listRC(h.roofCells, 4);
+      const elim = listRC(h.eliminated, 6);
+      return `
+        <div><strong>Two-String Kite（数字 ${h.d}）</strong></div>
+        <ol>
+          <li><b>観察：</b> 行r${h.row+1} と列c${h.col+1} は ${h.d} 候補が2つずつ。うち 2 マスが同一ブロック内（ベース：${base}）。</li>
+          <li><b>理由：</b> ベースのどちらかに ${h.d} が入らないなら、屋根（${roof}）のどちらかに必ず入る。</li>
+          <li><b>操作：</b> 屋根2マスの両方から見えるマスから <b>${h.d}</b> を削除（例：${elim}）。</li>
+          ${resultLine(h)}
+        </ol>`;
+    },
+    xyzwing: h => {
+      const P = rcTag(h.pivot[0],h.pivot[1]);
+      const A = rcTag(h.p1[0],h.p1[1]);
+      const B = rcTag(h.p2[0],h.p2[1]);
+      const elim = listRC(h.eliminated, 6);
+      return `
+        <div><strong>XYZ-Wing</strong></div>
+        <ol>
+          <li><b>観察：</b> ピボット ${P}={${h.x},${h.y},${h.z}}、ピンサー ${A}={${h.x},${h.z}} と ${B}={${h.y},${h.z}} がピボットから見える。</li>
+          <li><b>論理：</b> ピボットが ${h.x}/${h.y} なら、どちらかのピンサーが必ず <b>${h.z}</b>。</li>
+          <li><b>操作：</b> ピンサー2マスの両方から見えるマスから <b>${h.z}</b> を削除（例：${elim}）。</li>
+          ${resultLine(h)}
+        </ol>`;
+    },
     // ★ 追加：Quads（Naked/Hidden）
     quads: h => {
       const Q = `{${h.quad.join(',')}}`;

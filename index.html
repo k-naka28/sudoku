@@ -9,7 +9,7 @@
 </head>
 <body>
   <header>
-    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.12</span></h1>
+    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.13</span></h1>
     <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。ヒントは<strong>確定手は入力</strong>、確定できない場合は<strong>候補消去を提示</strong>します。</p>
   </header>
 
@@ -56,6 +56,7 @@
     <details class="history">
       <summary>更新履歴</summary>
       <ul>
+        <li><strong>1.13</strong> Skyscraper／Two-String Kite／XYZ-Wing 追加（候補消去の手筋を強化）</li>
         <li><strong>1.12</strong> 候補表示のON/OFFボタン追加（ヒント連動を廃止）</li>
         <li><strong>1.11</strong> 候補消去ヒントを追加／Jellyfish 追加／Locked Candidates の説明強化／確定手を優先表示</li>
         <li><strong>1.10</strong> ヒント候補の表示（ヒント時のみ）</li>
@@ -74,13 +75,16 @@
   <script defer src="./hints/pairs.js"></script>
   <script defer src="./hints/triples.js"></script>
   <script defer src="./hints/xwing.js"></script>
+  <script defer src="./hints/skyscraper.js"></script>
+  <script defer src="./hints/kite.js"></script>
   <script defer src="./hints/locked.js"></script>
+  <script defer src="./hints/xyzwing.js"></script>
   <script defer src="./hints/ywing.js"></script>
   <script defer src="./ui/reasons.js"></script>
   <script defer src="./hints/quads.js"></script>
   <script defer src="./hints/swordfish.js"></script>
   <script defer src="./hints/jellyfish.js"></script>
 
-  <script defer src="./app.js?v=1.12"></script>
+  <script defer src="./app.js?v=1.13"></script>
 </body>
 </html>

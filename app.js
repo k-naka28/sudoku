@@ -90,6 +90,7 @@
       hintActive = false;
       clearHintMarks();
       if(!candidatesOn) window.SudokuGrid.hideCandidates();
+      else updateCandidates(readGrid());
     }
     function markCells(cells, cls){
       if(!cells) return;
@@ -114,11 +115,14 @@
       markCells(move.pairCells, 'hint-focus');
       markCells(move.tripleCells, 'hint-focus');
       markCells(move.quadCells, 'hint-focus');
+      markCells(move.baseCells, 'hint-focus');
+      markCells(move.roofCells, 'hint-focus');
       if(move.pivot) markCells([move.pivot], 'hint-focus');
       if(move.p1) markCells([move.p1], 'hint-focus');
       if(move.p2) markCells([move.p2], 'hint-focus');
       markCells(move.eliminated, 'hint-elim');
       markElims(move.eliminations);
+      if(candidatesOn) updateCandidates(readGrid(), move.eliminations);
     }
 
     // 盤面生成 & 入力イベント
@@ -151,10 +155,10 @@
     // ------ ボタン群 ------
     const candBtn = $('toggleCandidates');
     const setCandLabel = ()=>{ candBtn.textContent = candidatesOn ? '候補:ON' : '候補:OFF'; };
-    function updateCandidates(g){
+    function updateCandidates(g, eliminations){
       if(!candidatesOn){ window.SudokuGrid.hideCandidates(); return; }
       const cand = window.SudokuHints.buildCandidates(g);
-      window.SudokuGrid.showCandidates(cand, g);
+      window.SudokuGrid.showCandidates(cand, g, eliminations);
     }
     candBtn.addEventListener('click', ()=>{
       candidatesOn = !candidatesOn;
@@ -288,7 +292,7 @@
     const H = window.SudokuHints;
 
     // 優先度：「わかりやすい → 難しい」
-    // Hidden → Naked → Locked → Pairs → Triples → X-Wing → Swordfish → Jellyfish → Y-Wing → Quads
+    // Hidden → Naked → Locked → Pairs → Triples → X-Wing → Skyscraper → Kite → Swordfish → Jellyfish → XYZ-Wing → Y-Wing → Quads
     const order = [
       H.findHidden,
       H.findNaked,
@@ -296,8 +300,11 @@
       H.findPairs,
       H.findTriples,
       H.findXWing,
+      H.findSkyscraper,
+      H.findKite,
       H.findSwordfish,   // ★追加
       H.findJellyfish,   // ★追加
+      H.findXYZWing,
       H.findYWing,
       H.findQuads        // ★追加（Naked/Hidden Quad）
     ];
@@ -316,6 +323,9 @@
         (h.kind?.includes('locked'))    ? R.locked(h)  :
         (h.kind?.includes('swordfish')) ? R.swordfish(h):
         (h.kind?.includes('jellyfish')) ? R.jellyfish(h):
+        (h.kind?.includes('skyscraper')) ? R.skyscraper(h):
+        (h.kind==='kite')               ? R.kite(h)    :
+        (h.kind==='xyzwing')            ? R.xyzwing(h) :
         (h.kind?.includes('quad'))      ? R.quads(h)   :
         '論理の詳細は未定義です。';
       const action = h.action || (Number.isInteger(h.r) ? 'place' : 'eliminate');
