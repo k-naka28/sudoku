@@ -30,6 +30,14 @@
     }
     return added;
   };
+  let pendingElims = null;
+  let pendingMove = null;
+  let pendingTotal = 0;
+  const clearPendingElims = ()=>{
+    pendingElims = null;
+    pendingMove = null;
+    pendingTotal = 0;
+  };
 
   // ---------- 履歴（Undo/Redo） ----------
   const history = [];
@@ -74,6 +82,7 @@
       if(!snap.given[r][c] && snap.lowconf[r][c]) wraps[r][c].classList.add('lowconf');
     }
     applyBansFromArrays(snap.bans || []);
+    clearPendingElims();
     lastKey = snapKey(snap);
     refresh();
     suspendHistory = false;
@@ -131,7 +140,7 @@
     function showHintMode(cand, move){
       hintActive = true;
       clearHintMarks();
-      if(move.action === 'place' && Number.isInteger(move.r) && Number.isInteger(move.c)){
+      if((move.action === 'place' || move.placeTarget) && Number.isInteger(move.r) && Number.isInteger(move.c)){
         wraps[move.r][move.c].classList.add('hint-target');
       }
       markCells(move.pairCells, 'hint-focus');
@@ -158,6 +167,8 @@
         const inp = inputs[r][c];
         inp.addEventListener('input', e=>{
           exitHintMode();
+          clearPendingElims();
+          resetBans();
           const v = e.target.value.replace(/[^0-9]/g,'');
           e.target.value = (v==='0') ? '' : v;
           if(w.classList.contains('given')) return;
@@ -193,6 +204,50 @@
       const cand = candOverride || buildCandidatesWithBans(g);
       window.SudokuGrid.showCandidates(cand, g, eliminations);
     }
+
+    $('reduceCandidates').addEventListener('click', ()=>{
+      const g = readGrid();
+      if(!validGrid(g)){
+        setMsg('矛盾があるため候補を減らせません。','err');
+        return;
+      }
+      exitHintMode();
+      const cand = buildCandidatesWithBans(g);
+      const place = computePlaceHint(cand);
+      if(place){
+        showHintMode(cand, {...place, placeTarget:true});
+        setMsg(`<div><strong>確定候補：</strong>${rcTag(place.r,place.c)} = <b>${place.d}</b></div>` + place.reason, 'ok');
+        return;
+      }
+
+      if(!pendingElims || pendingElims.length===0){
+        const move = computeElimHint(cand);
+        if(!move){
+          setMsg('今は候補削除なし。','warn');
+          return;
+        }
+        pendingMove = move;
+        pendingElims = move.eliminations.slice();
+        pendingTotal = pendingElims.length;
+      }
+
+      const elim = pendingElims.shift();
+      const added = applyEliminations([elim]);
+      if(added) pushSnapshot(snapshot());
+      const candAfter = buildCandidatesWithBans(g);
+      const placeAfter = computePlaceHint(candAfter);
+      const displayMove = {...pendingMove, action:'eliminate', eliminations:[elim]};
+      if(placeAfter){
+        displayMove.placeTarget = true;
+        displayMove.r = placeAfter.r; displayMove.c = placeAfter.c; displayMove.d = placeAfter.d;
+      }
+      showHintMode(candAfter, displayMove);
+      if(pendingElims.length===0) clearPendingElims();
+      const remaining = pendingElims ? pendingElims.length : 0;
+      const baseMsg = `<div><strong>候補削除：</strong>${rcTag(elim.r,elim.c)} の <b>${elim.d}</b> を除外（残り ${remaining}/${pendingTotal}）</div>`;
+      const placeMsg = placeAfter ? `<div><strong>確定候補：</strong>${rcTag(placeAfter.r,placeAfter.c)} = <b>${placeAfter.d}</b></div>` : '';
+      setMsg(baseMsg + placeMsg + pendingMove.reason, 'ok');
+    });
     candBtn.addEventListener('click', ()=>{
       candidatesOn = !candidatesOn;
       setCandLabel();
@@ -202,6 +257,7 @@
 
     $('solve').addEventListener('click', ()=>{
       exitHintMode();
+      clearPendingElims();
       const g = readGrid();
       if(!validGrid(g)){ setMsg('<strong>矛盾：</strong> 行/列/ブロック内で重複があります。','err'); return; }
       const before = snapshot();
@@ -230,39 +286,11 @@
         return;
       }
       exitHintMode();
-      let cand = buildCandidatesWithBans(hintGrid);
-      let move = computeNextHint(cand);
-      if(!move){ setMsg('今は確定ヒントなし。','warn'); return; }
-      let elimApplied = 0;
-      let lastElimMove = null;
-      let lastElimCand = null;
-      let guard = 0;
-      while(move && move.action === 'eliminate' && guard < 50){
-        lastElimMove = move;
-        lastElimCand = cand;
-        const added = applyEliminations(move.eliminations);
-        if(added === 0) break;
-        elimApplied += added;
-        cand = buildCandidatesWithBans(hintGrid);
-        move = computeNextHint(cand);
-        guard++;
-      }
-      if(!move || (move.action === 'eliminate' && guard >= 50)){
-        if(lastElimMove){
-          showHintMode(lastElimCand, lastElimMove);
-          if(elimApplied) pushSnapshot(snapshot());
-          const count = elimApplied || (lastElimMove.eliminations ? lastElimMove.eliminations.length : 0);
-          setMsg(`<div><strong>消去ヒント：</strong>候補を ${count} 箇所削除しました。</div>` + lastElimMove.reason, 'ok');
-        }else{
-          setMsg('今は確定ヒントなし。','warn');
-        }
-        return;
-      }
-      if(move.action === 'eliminate'){
-        showHintMode(cand, move);
-        if(elimApplied) pushSnapshot(snapshot());
-        const count = elimApplied || (move.eliminations ? move.eliminations.length : 0);
-        setMsg(`<div><strong>消去ヒント：</strong>候補を ${count} 箇所削除しました。</div>` + move.reason, 'ok');
+      clearPendingElims();
+      const cand = buildCandidatesWithBans(hintGrid);
+      const move = computePlaceHint(cand);
+      if(!move){
+        setMsg('今は確定ヒントなし。候補を減らすを使ってください。','warn');
         return;
       }
       const {r,c,d,reason} = move;
@@ -278,8 +306,7 @@
       suspendHistory = false;
 
       pushSnapshot(snapshot());
-      const prefix = elimApplied ? `<div><strong>候補整理：</strong>${elimApplied} 箇所削除 → 次の確定手</div>` : '';
-      setMsg(prefix + `<div><strong>ヒント適用：</strong>${rcTag(r,c)} に <b>${d}</b></div>` + reason, 'ok');
+      setMsg(`<div><strong>ヒント適用：</strong>${rcTag(r,c)} に <b>${d}</b></div>` + reason, 'ok');
     });
 
     $('undo').addEventListener('click', ()=>{
@@ -303,6 +330,7 @@
 
     $('clear').addEventListener('click', ()=>{
       exitHintMode();
+      clearPendingElims();
       resetBans();
       renderGrid(Array.from({length:9},()=>Array(9).fill(0)));
       clearFlags(); refresh(); setMsg('クリアしました。','ok');
@@ -311,19 +339,21 @@
 
     $('demo').addEventListener('click', ()=>{
       exitHintMode();
+      clearPendingElims();
       loadLinear('530070000600195000098000060800060003400803001700020006060000280000419005000080079');
     });
-    $('load').addEventListener('click', ()=> loadLinear($('linear').value));
+    $('load').addEventListener('click', ()=>{ clearPendingElims(); loadLinear($('linear').value); });
     $('export').addEventListener('click', ()=>{
       exitHintMode();
       const g = window.SudokuGrid.readGrid();
       $('linear').value = g.flat().map(v=>v||0).join('');
       setMsg('盤面を書き出しました。','ok');
     });
-    $('manualColor').addEventListener('change', e=>{ exitHintMode(); window.SudokuGrid.setManualColor(e.target.value); });
+    $('manualColor').addEventListener('change', e=>{ exitHintMode(); clearPendingElims(); window.SudokuGrid.setManualColor(e.target.value); });
 
     function loadLinear(s){
       exitHintMode();
+      clearPendingElims();
       s=(s||'').replace(/[^0-9.]/g,'').replace(/\./g,'0');
       if(s.length!==81){ setMsg('81文字の0-9で貼り付けてください。','warn'); return; }
       const g = Array.from({length:9},()=>Array(9).fill(0));
@@ -351,7 +381,7 @@
   });
 
   // ---------- ヒント計算（1手適用用） ----------
-  function computeNextHint(cand){
+  function computeHintWithOpts(cand, opts){
     const H = window.SudokuHints;
 
     // 優先度：「わかりやすい → 難しい」
@@ -395,15 +425,19 @@
       return {...h, action, reason};
     };
 
-    const pick = (opts)=>{
-      for(const fn of order){
-        const h = fn && fn(cand, opts);
-        if(h) return buildHint(h);
-      }
-      return null;
-    };
-
-    // まず「数字を確定できる手」を優先
-    return pick({allowElim:false}) || pick({allowElim:true});
+    for(const fn of order){
+      const h = fn && fn(cand, opts);
+      if(h) return buildHint(h);
+    }
+    return null;
+  }
+  function computePlaceHint(cand){
+    const h = computeHintWithOpts(cand, {allowElim:false});
+    return (h && h.action==='place') ? h : null;
+  }
+  function computeElimHint(cand){
+    const h = computeHintWithOpts(cand, {allowElim:true});
+    if(!h || !h.eliminations || h.eliminations.length===0) return null;
+    return {...h, action:'eliminate'};
   }
 })();
