@@ -127,35 +127,41 @@
     },
     locked: h => {
       const box = boxName(h.box);
+      const baseCells = listRC(h.baseCells, 6);
+      const elimCells = listRC(h.eliminated, 6);
       if (h.kind === 'locked-pointing-row')
         return `
           <div><strong>Locked Candidates – Pointing（${box} → 行r${h.row+1}）</strong></div>
           <ol>
-            <li><b>観察：</b> ${box} 内の <b>${h.base}</b> 候補が同一行に集中。</li>
-            <li><b>操作：</b> その行の他ブロック部分から <b>${h.base}</b> を削除。</li>
+            <li><b>観察：</b> ${box} 内の <b>${h.base}</b> 候補が <b>行r${h.row+1}</b> にだけ存在（${baseCells}）。</li>
+            <li><b>理由：</b> ${box} で ${h.base} を置けるのはその行だけ → 同じ行の他ブロックには置けない。</li>
+            <li><b>操作：</b> 行r${h.row+1} の他ブロックから <b>${h.base}</b> を削除（例：${elimCells}）。</li>
             ${resultLine(h)}
           </ol>`;
       if (h.kind === 'locked-pointing-col')
         return `
           <div><strong>Locked Candidates – Pointing（${box} → 列c${h.col+1}）</strong></div>
           <ol>
-            <li><b>観察：</b> ${box} 内の <b>${h.base}</b> 候補が同一列に集中。</li>
-            <li><b>操作：</b> その列の他ブロック部分から <b>${h.base}</b> を削除。</li>
+            <li><b>観察：</b> ${box} 内の <b>${h.base}</b> 候補が <b>列c${h.col+1}</b> にだけ存在（${baseCells}）。</li>
+            <li><b>理由：</b> ${box} で ${h.base} を置けるのはその列だけ → 同じ列の他ブロックには置けない。</li>
+            <li><b>操作：</b> 列c${h.col+1} の他ブロックから <b>${h.base}</b> を削除（例：${elimCells}）。</li>
             ${resultLine(h)}
           </ol>`;
       if (h.kind === 'locked-claiming-row')
         return `
           <div><strong>Locked Candidates – Claiming（行r${h.row+1} → ${box}）</strong></div>
           <ol>
-            <li><b>観察：</b> 行における <b>${h.base}</b> 候補が ${box} のみに存在。</li>
-            <li><b>操作：</b> ${box} の他行から <b>${h.base}</b> を削除。</li>
+            <li><b>観察：</b> 行r${h.row+1} の <b>${h.base}</b> 候補が ${box} のみ（${baseCells}）。</li>
+            <li><b>理由：</b> 行で ${h.base} を置けるのは ${box} だけ → ${box} の他行には置けない。</li>
+            <li><b>操作：</b> ${box} の他行から <b>${h.base}</b> を削除（例：${elimCells}）。</li>
             ${resultLine(h)}
           </ol>`;
       return `
         <div><strong>Locked Candidates – Claiming（列c${h.col+1} → ${box}）</strong></div>
         <ol>
-          <li><b>観察：</b> 列における <b>${h.base}</b> 候補が ${box} のみに存在。</li>
-          <li><b>操作：</b> ${box} の他列から <b>${h.base}</b> を削除。</li>
+          <li><b>観察：</b> 列c${h.col+1} の <b>${h.base}</b> 候補が ${box} のみ（${baseCells}）。</li>
+          <li><b>理由：</b> 列で ${h.base} を置けるのは ${box} だけ → ${box} の他列には置けない。</li>
+          <li><b>操作：</b> ${box} の他列から <b>${h.base}</b> を削除（例：${elimCells}）。</li>
           ${resultLine(h)}
         </ol>`;
     },

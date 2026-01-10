@@ -9,7 +9,7 @@
 </head>
 <body>
   <header>
-    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.10</span></h1>
+    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.11</span></h1>
     <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。ヒントは<strong>確定手は入力</strong>、確定できない場合は<strong>候補消去を提示</strong>します。</p>
   </header>
 
@@ -52,6 +52,13 @@
 
   <footer class="note">
     <p>完成時は各行・列・ブロックの合計が<strong>45</strong>（OK緑／未完成橙／矛盾赤）。</p>
+    <details class="history">
+      <summary>更新履歴</summary>
+      <ul>
+        <li><strong>1.11</strong> 候補消去ヒントを追加／Jellyfish 追加／Locked Candidates の説明強化／確定手を優先表示</li>
+        <li><strong>1.10</strong> ヒント候補の表示（ヒント時のみ）</li>
+      </ul>
+    </details>
   </footer>
 
   <!-- 依存順に読み込み（defer は順序を保持して DOM 後に実行） -->
@@ -72,6 +79,6 @@
   <script defer src="./hints/swordfish.js"></script>
   <script defer src="./hints/jellyfish.js"></script>
 
-  <script defer src="./app.js?v=1.10"></script>
+  <script defer src="./app.js?v=1.11"></script>
 </body>
 </html>

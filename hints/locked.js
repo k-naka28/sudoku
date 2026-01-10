@@ -18,6 +18,15 @@
     }
     return out;
   };
+  const uniqCells = cells => {
+    const set = new Set();
+    return cells.filter(([r,c])=>{
+      const k = `${r},${c}`;
+      if(set.has(k)) return false;
+      set.add(k);
+      return true;
+    });
+  };
   const bix = (r,c)=>Math.floor(r/3)*3+Math.floor(c/3);
   const newSingle=(next,prev)=>{for(let r=0;r<9;r++)for(let c=0;c<9;c++)if(prev[r][c].length!==1&&next[r][c].length===1)return{r,c,d:next[r][c][0]};return null};
 
@@ -30,23 +39,25 @@
         if(pos.length<2) continue; // 2個以上ないと“同一直線”判断の旨味がない
         const sameRow=pos.every(([r])=>r===pos[0][0]), sameCol=pos.every(([,c])=>c===pos[0][1]);
         if(sameRow){
-          const r=pos[0][0], next=clone(cand); let ch=false;
-          for(let c=0;c<9;c++) if(c<bc||c>bc+2){const a=next[r][c];const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true}}
+          const r=pos[0][0], next=clone(cand); let ch=false; const elimRaw=[];
+          for(let c=0;c<9;c++) if(c<bc||c>bc+2){const a=next[r][c];const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true; elimRaw.push([r,c]);}}
           if(ch){
+            const eliminated = uniqCells(elimRaw);
             const eliminations = diffElims(cand,next);
             const s=newSingle(next,cand);
-            if(s) return {...s,action:'place',kind:'locked-pointing-row',box:b,row:r,base:d,eliminations};
-            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-pointing-row',box:b,row:r,base:d,eliminations};
+            if(s) return {...s,action:'place',kind:'locked-pointing-row',box:b,row:r,base:d,baseCells:pos.slice(),eliminated,eliminations};
+            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-pointing-row',box:b,row:r,base:d,baseCells:pos.slice(),eliminated,eliminations};
           }
         }
         if(sameCol){
-          const c=pos[0][1], next=clone(cand); let ch=false;
-          for(let r=0;r<9;r++) if(r<br||r>br+2){const a=next[r][c];const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true}}
+          const c=pos[0][1], next=clone(cand); let ch=false; const elimRaw=[];
+          for(let r=0;r<9;r++) if(r<br||r>br+2){const a=next[r][c];const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true; elimRaw.push([r,c]);}}
           if(ch){
+            const eliminated = uniqCells(elimRaw);
             const eliminations = diffElims(cand,next);
             const s=newSingle(next,cand);
-            if(s) return {...s,action:'place',kind:'locked-pointing-col',box:b,col:c,base:d,eliminations};
-            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-pointing-col',box:b,col:c,base:d,eliminations};
+            if(s) return {...s,action:'place',kind:'locked-pointing-col',box:b,col:c,base:d,baseCells:pos.slice(),eliminated,eliminations};
+            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-pointing-col',box:b,col:c,base:d,baseCells:pos.slice(),eliminated,eliminations};
           }
         }
       }
@@ -57,16 +68,17 @@
       if(pos.length>=2){
         const b=bix(pos[0][0],pos[0][1]); // 最初のブロック
         if(pos.every(p=>bix(...p)===b)){
-          const br=Math.floor(b/3)*3,bc=(b%3)*3,next=clone(cand);let ch=false;
+          const br=Math.floor(b/3)*3,bc=(b%3)*3,next=clone(cand);let ch=false; const elimRaw=[];
           for(let dr=0;dr<3;dr++)for(let dc=0;dc<3;dc++){
             const rr=br+dr,cc=bc+dc;
-            if(rr!==r){ const a=next[rr][cc]; const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true} }
+            if(rr!==r){ const a=next[rr][cc]; const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true; elimRaw.push([rr,cc]);} }
           }
           if(ch){
+            const eliminated = uniqCells(elimRaw);
             const eliminations = diffElims(cand,next);
             const s=newSingle(next,cand);
-            if(s) return {...s,action:'place',kind:'locked-claiming-row',box:b,row:r,base:d,eliminations};
-            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-claiming-row',box:b,row:r,base:d,eliminations};
+            if(s) return {...s,action:'place',kind:'locked-claiming-row',box:b,row:r,base:d,baseCells:pos.slice(),eliminated,eliminations};
+            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-claiming-row',box:b,row:r,base:d,baseCells:pos.slice(),eliminated,eliminations};
           }
         }
       }
@@ -76,16 +88,17 @@
       if(pos.length>=2){
         const b=bix(pos[0][0],pos[0][1]);
         if(pos.every(p=>bix(...p)===b)){
-          const br=Math.floor(b/3)*3,bc=(b%3)*3,next=clone(cand);let ch=false;
+          const br=Math.floor(b/3)*3,bc=(b%3)*3,next=clone(cand);let ch=false; const elimRaw=[];
           for(let dr=0;dr<3;dr++)for(let dc=0;dc<3;dc++){
             const rr=br+dr,cc=bc+dc;
-            if(cc!==c){ const a=next[rr][cc]; const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true} }
+            if(cc!==c){ const a=next[rr][cc]; const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true; elimRaw.push([rr,cc]);} }
           }
           if(ch){
+            const eliminated = uniqCells(elimRaw);
             const eliminations = diffElims(cand,next);
             const s=newSingle(next,cand);
-            if(s) return {...s,action:'place',kind:'locked-claiming-col',box:b,col:c,base:d,eliminations};
-            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-claiming-col',box:b,col:c,base:d,eliminations};
+            if(s) return {...s,action:'place',kind:'locked-claiming-col',box:b,col:c,base:d,baseCells:pos.slice(),eliminated,eliminations};
+            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-claiming-col',box:b,col:c,base:d,baseCells:pos.slice(),eliminated,eliminations};
           }
         }
       }

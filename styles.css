@@ -61,6 +61,11 @@ button{cursor:pointer}button.primary{background:var(--accent);border-color:var(-
 .io input[type="text"]{width:360px;max-width:80vw;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .selectwrap{display:flex;align-items:center;gap:8px}.msg{min-height:1.2em;font-weight:700}
 .msg.ok{color:#0b7a33}.msg.warn{color:#b45309}.msg.err{color:#b91c1c}
+.note{padding:0 16px 16px}
+.history{margin-top:8px;font-size:12px;color:#444}
+.history summary{cursor:pointer;font-weight:600}
+.history ul{margin:6px 0 0 18px;padding:0}
+.history li{margin:4px 0}
 @media (max-width:720px){
   :root{--size:42px}
   .wrap{padding:0 12px 20px}

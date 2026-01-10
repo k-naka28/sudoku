@@ -284,28 +284,35 @@
       H.findQuads        // ★追加（Naked/Hidden Quad）
     ];
 
-    const opts = {allowElim:true};
-    for(const fn of order){
-      const h = fn && fn(cand, opts);
-      if(h){
-        // 解説は reasons.js 側で詳細化
-        const R = window.Reasons;
-        const reason =
-          (h.kind?.startsWith('hidden'))  ? R.hidden(h)  :
-          (h.kind==='naked-single')       ? R.naked(h)   :
-          (h.kind?.includes('naked-pair') || h.kind?.includes('hidden-pair')) ? R.pairs(h) :
-          (h.kind?.includes('triple'))    ? R.triples(h) :
-          (h.kind?.startsWith('xwing'))   ? R.xwing(h)   :
-          (h.kind==='ywing')              ? R.ywing(h)   :
-          (h.kind?.includes('locked'))    ? R.locked(h)  :
-          (h.kind?.includes('swordfish')) ? R.swordfish(h):
-          (h.kind?.includes('jellyfish')) ? R.jellyfish(h):
-          (h.kind?.includes('quad'))      ? R.quads(h)   :
-          '論理の詳細は未定義です。';
-        const action = h.action || (Number.isInteger(h.r) ? 'place' : 'eliminate');
-        return {...h, action, reason};
+    const buildHint = (h)=>{
+      if(!h) return null;
+      // 解説は reasons.js 側で詳細化
+      const R = window.Reasons;
+      const reason =
+        (h.kind?.startsWith('hidden'))  ? R.hidden(h)  :
+        (h.kind==='naked-single')       ? R.naked(h)   :
+        (h.kind?.includes('naked-pair') || h.kind?.includes('hidden-pair')) ? R.pairs(h) :
+        (h.kind?.includes('triple'))    ? R.triples(h) :
+        (h.kind?.startsWith('xwing'))   ? R.xwing(h)   :
+        (h.kind==='ywing')              ? R.ywing(h)   :
+        (h.kind?.includes('locked'))    ? R.locked(h)  :
+        (h.kind?.includes('swordfish')) ? R.swordfish(h):
+        (h.kind?.includes('jellyfish')) ? R.jellyfish(h):
+        (h.kind?.includes('quad'))      ? R.quads(h)   :
+        '論理の詳細は未定義です。';
+      const action = h.action || (Number.isInteger(h.r) ? 'place' : 'eliminate');
+      return {...h, action, reason};
+    };
+
+    const pick = (opts)=>{
+      for(const fn of order){
+        const h = fn && fn(cand, opts);
+        if(h) return buildHint(h);
       }
-    }
-    return null;
+      return null;
+    };
+
+    // まず「数字を確定できる手」を優先
+    return pick({allowElim:false}) || pick({allowElim:true});
   }
 })();
