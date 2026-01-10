@@ -34,10 +34,12 @@
   let pendingElims = null;
   let pendingMove = null;
   let resetReduceUI = ()=>{};
+  let setReduceDisabled = ()=>{};
   const clearPendingElims = ()=>{
     pendingElims = null;
     pendingMove = null;
     resetReduceUI();
+    setReduceDisabled(false);
   };
 
   // ---------- 履歴（Undo/Redo） ----------
@@ -212,6 +214,7 @@
     let reduceMode = 'hint';
     const setReduceLabel = ()=>{ reduceBtn.textContent = (reduceMode === 'hint') ? 'ヒントを表示' : '候補を減らす'; };
     resetReduceUI = ()=>{ reduceMode = 'hint'; setReduceLabel(); };
+    setReduceDisabled = (disabled)=>{ reduceBtn.disabled = !!disabled; };
     const setCandLabel = ()=>{ candBtn.textContent = candidatesOn ? '候補:ON' : '候補:OFF'; };
     function buildCandidatesWithBans(g){
       const base = window.SudokuHints.buildCandidates(g);
@@ -267,6 +270,7 @@
         }else{
           setMsg('今は削除ヒントなし。','warn');
         }
+        setReduceDisabled(true);
         return;
       }
       pendingMove = move;
