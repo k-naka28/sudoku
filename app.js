@@ -12,6 +12,25 @@
     m.innerHTML = html; // 本アプリ内の生成文言のみ
   }
 
+  // ---------- 候補の削除状態 ----------
+  const emptyBans = () => Array.from({length:9},()=>Array.from({length:9},()=>new Set()));
+  let candBans = emptyBans();
+  const bansToArrays = () => candBans.map(row=>row.map(set=>Array.from(set).sort((a,b)=>a-b)));
+  const applyBansFromArrays = (bans)=>{
+    candBans = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>new Set((bans && bans[r] && bans[r][c]) || [])));
+  };
+  const resetBans = ()=>{ candBans = emptyBans(); };
+  const applyEliminations = (elims)=>{
+    let added = 0;
+    for(const e of elims || []){
+      if(!candBans[e.r][e.c].has(e.d)){
+        candBans[e.r][e.c].add(e.d);
+        added++;
+      }
+    }
+    return added;
+  };
+
   // ---------- 履歴（Undo/Redo） ----------
   const history = [];
   let hIndex = -1;
@@ -24,7 +43,8 @@
     s.manual.flat().map(Number).join(''),
     s.auto.flat().map(Number).join(''),
     s.ocr.flat().map(Number).join(''),
-    s.lowconf.flat().map(Number).join('')
+    s.lowconf.flat().map(Number).join(''),
+    s.bans ? s.bans.flat().map(a=>a.join('')).join('.') : ''
   ].join('|');
 
   function snapshot(){
@@ -35,7 +55,8 @@
     const auto  = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('auto')));
     const ocr   = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('ocr')));
     const lowconf = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('lowconf')));
-    return {grid:g, given, manual, auto, ocr, lowconf};
+    const bans = bansToArrays();
+    return {grid:g, given, manual, auto, ocr, lowconf, bans};
   }
   function applySnapshot(snap){
     const {renderGrid,clearFlags,inputs,wraps} = window.SudokuGrid;
@@ -52,6 +73,7 @@
       if(!snap.given[r][c] && snap.ocr[r][c])    wraps[r][c].classList.add('ocr');
       if(!snap.given[r][c] && snap.lowconf[r][c]) wraps[r][c].classList.add('lowconf');
     }
+    applyBansFromArrays(snap.bans || []);
     lastKey = snapKey(snap);
     refresh();
     suspendHistory = false;
@@ -122,7 +144,10 @@
       if(move.p2) markCells([move.p2], 'hint-focus');
       markCells(move.eliminated, 'hint-elim');
       markElims(move.eliminations);
-      if(candidatesOn) updateCandidates(readGrid(), move.eliminations);
+      if(candidatesOn){
+        const candOverride = (move.action === 'eliminate') ? cand : null;
+        updateCandidates(readGrid(), move.eliminations, candOverride);
+      }
     }
 
     // 盤面生成 & 入力イベント
@@ -155,9 +180,17 @@
     // ------ ボタン群 ------
     const candBtn = $('toggleCandidates');
     const setCandLabel = ()=>{ candBtn.textContent = candidatesOn ? '候補:ON' : '候補:OFF'; };
-    function updateCandidates(g, eliminations){
+    function buildCandidatesWithBans(g){
+      const base = window.SudokuHints.buildCandidates(g);
+      for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+        const banned = candBans[r][c];
+        if(banned.size) base[r][c] = base[r][c].filter(d=>!banned.has(d));
+      }
+      return base;
+    }
+    function updateCandidates(g, eliminations, candOverride){
       if(!candidatesOn){ window.SudokuGrid.hideCandidates(); return; }
-      const cand = window.SudokuHints.buildCandidates(g);
+      const cand = candOverride || buildCandidatesWithBans(g);
       window.SudokuGrid.showCandidates(cand, g, eliminations);
     }
     candBtn.addEventListener('click', ()=>{
@@ -176,6 +209,7 @@
       const given = mask('given'), manual = mask('manual'), ocr = mask('ocr');
       const res = solve(g);
       if(res.ok){
+        resetBans();
         renderGrid(res.grid);
         for(let r=0;r<9;r++)for(let c=0;c<9;c++){
           wraps[r][c].classList.remove('auto','hinted','lowconf');
@@ -196,16 +230,42 @@
         return;
       }
       exitHintMode();
-      const cand = window.SudokuHints.buildCandidates(hintGrid);
-      const move = computeNextHint(cand);
+      let cand = buildCandidatesWithBans(hintGrid);
+      let move = computeNextHint(cand);
       if(!move){ setMsg('今は確定ヒントなし。','warn'); return; }
-      const {r,c,d,reason} = move;
-      if(move.action === 'eliminate'){
-        showHintMode(cand, move);
-        const count = move.eliminations ? move.eliminations.length : 0;
-        setMsg(`<div><strong>消去ヒント：</strong>候補を ${count} 箇所削除できます。</div>` + reason, 'ok');
+      let elimApplied = 0;
+      let lastElimMove = null;
+      let lastElimCand = null;
+      let guard = 0;
+      while(move && move.action === 'eliminate' && guard < 50){
+        lastElimMove = move;
+        lastElimCand = cand;
+        const added = applyEliminations(move.eliminations);
+        if(added === 0) break;
+        elimApplied += added;
+        cand = buildCandidatesWithBans(hintGrid);
+        move = computeNextHint(cand);
+        guard++;
+      }
+      if(!move || (move.action === 'eliminate' && guard >= 50)){
+        if(lastElimMove){
+          showHintMode(lastElimCand, lastElimMove);
+          if(elimApplied) pushSnapshot(snapshot());
+          const count = elimApplied || (lastElimMove.eliminations ? lastElimMove.eliminations.length : 0);
+          setMsg(`<div><strong>消去ヒント：</strong>候補を ${count} 箇所削除しました。</div>` + lastElimMove.reason, 'ok');
+        }else{
+          setMsg('今は確定ヒントなし。','warn');
+        }
         return;
       }
+      if(move.action === 'eliminate'){
+        showHintMode(cand, move);
+        if(elimApplied) pushSnapshot(snapshot());
+        const count = elimApplied || (move.eliminations ? move.eliminations.length : 0);
+        setMsg(`<div><strong>消去ヒント：</strong>候補を ${count} 箇所削除しました。</div>` + move.reason, 'ok');
+        return;
+      }
+      const {r,c,d,reason} = move;
       if(wraps[r][c].classList.contains('given')){ setMsg('そのマスは固定（黒）です。','warn'); return; }
 
       // ★ヒントを「1手適用」＋ 緑色にする（manual + hinted）
@@ -218,7 +278,8 @@
       suspendHistory = false;
 
       pushSnapshot(snapshot());
-      setMsg(`<div><strong>ヒント適用：</strong>${rcTag(r,c)} に <b>${d}</b></div>` + reason, 'ok');
+      const prefix = elimApplied ? `<div><strong>候補整理：</strong>${elimApplied} 箇所削除 → 次の確定手</div>` : '';
+      setMsg(prefix + `<div><strong>ヒント適用：</strong>${rcTag(r,c)} に <b>${d}</b></div>` + reason, 'ok');
     });
 
     $('undo').addEventListener('click', ()=>{
@@ -242,6 +303,7 @@
 
     $('clear').addEventListener('click', ()=>{
       exitHintMode();
+      resetBans();
       renderGrid(Array.from({length:9},()=>Array(9).fill(0)));
       clearFlags(); refresh(); setMsg('クリアしました。','ok');
       pushSnapshot(snapshot());
@@ -266,6 +328,7 @@
       if(s.length!==81){ setMsg('81文字の0-9で貼り付けてください。','warn'); return; }
       const g = Array.from({length:9},()=>Array(9).fill(0));
       for(let i=0;i<81;i++){ const r=Math.floor(i/9),c=i%9,d=Number(s[i]); g[r][c]=(d>=1&&d<=9)?d:0 }
+      resetBans();
       suspendHistory = true;
       window.SudokuGrid.renderGrid(g);
       window.SudokuGrid.applyGivenMask(g);
