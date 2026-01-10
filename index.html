@@ -9,7 +9,7 @@
 </head>
 <body>
   <header>
-    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.27</span></h1>
+    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.28</span></h1>
     <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。<strong>埋める</strong>は確定手を入力、<strong>ヒントを表示</strong>で削除ヒント→<strong>候補を減らす</strong>で適用。</p>
   </header>
 
@@ -59,6 +59,7 @@
     <details class="history">
       <summary>更新履歴</summary>
       <ul>
+        <li><strong>1.28</strong> Hidden Single の対象ユニットは塗りのみ、確定マスは枠＋塗りに変更</li>
         <li><strong>1.27</strong> Hidden Single のユニット枠強調を廃止／Undo/Redoの状態更新を安定化</li>
         <li><strong>1.26</strong> Undo/Redo の色復元とヒント系ボタンの完了時無効化</li>
         <li><strong>1.25</strong> Hidden Single の対象ユニット（行/列/ブロック）を緑で強調</li>
@@ -102,6 +103,6 @@
   <script defer src="./hints/swordfish.js"></script>
   <script defer src="./hints/jellyfish.js"></script>
 
-  <script defer src="./app.js?v=1.27"></script>
+  <script defer src="./app.js?v=1.28"></script>
 </body>
 </html>
