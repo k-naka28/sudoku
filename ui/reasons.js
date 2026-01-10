@@ -9,6 +9,9 @@
     if(arr.length > max) return `${arr.slice(0,max).join('、')} など（全${arr.length}マス）`;
     return arr.join('、');
   };
+  const resultLine = h => h.action === 'eliminate'
+    ? '<li><b>結果：</b> 候補を削除できる。</li>'
+    : `<li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>`;
 
   const Reasons = {
     hidden: h => {
@@ -39,7 +42,7 @@
           <ol>
             <li><b>観察：</b> ${P} は ${p1} と ${p2} の <b>2マスだけ</b>。</li>
             <li><b>操作：</b> 行${h.row+1} の他マスから ${P} を削除。</li>
-            <li><b>結果：</b> 候補整理により ${rcTag(h.r,h.c)} = <b>${h.d}</b> が出現。</li>
+            ${resultLine(h)}
           </ol>`;
       if (h.kind === 'naked-pair-col')
         return `
@@ -47,7 +50,7 @@
           <ol>
             <li><b>観察：</b> ${P} は ${p1} と ${p2} の 2マスだけ。</li>
             <li><b>操作：</b> 列${h.col+1} の他マスから ${P} を削除。</li>
-            <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+            ${resultLine(h)}
           </ol>`;
       if (h.kind === 'naked-pair-box')
         return `
@@ -55,7 +58,7 @@
           <ol>
             <li><b>観察：</b> ${P} は ${p1} と ${p2} の 2マスだけ。</li>
             <li><b>操作：</b> 同ブロックの他マスから ${P} を削除。</li>
-            <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+            ${resultLine(h)}
           </ol>`;
       const where = h.kind==='hidden-pair-row' ? `行${h.row+1}` :
                     h.kind==='hidden-pair-col' ? `列${h.col+1}` : boxName(h.box);
@@ -64,7 +67,7 @@
         <ol>
           <li><b>観察：</b> 数字 ${P} を置けるのは ${p1} と ${p2} の <b>2マスのみ</b>。</li>
           <li><b>操作：</b> その 2 マスから ${P} 以外を削除（${P} 専用化）。</li>
-          <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+          ${resultLine(h)}
         </ol>`;
     },
     triples: h => {
@@ -78,14 +81,14 @@
           <ol>
             <li><b>観察：</b> ${cells} の候補合併が <b>${T}</b> の 3 種。</li>
             <li><b>操作：</b> ${where} の他マスから ${T} を削除。</li>
-            <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+            ${resultLine(h)}
           </ol>`;
       return `
         <div><strong>Hidden Triple（${where}）</strong></div>
         <ol>
           <li><b>観察：</b> ${T} の出現可能位置の和集合が <b>3マス（${cells}）</b>。</li>
           <li><b>操作：</b> その 3 マスから ${T} 以外を削除。</li>
-          <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+          ${resultLine(h)}
         </ol>`;
     },
     xwing: h => {
@@ -98,14 +101,14 @@
           <ol>
             <li><b>観察：</b> 行 ${rows} の ${h.d} 候補が 2 列 <b>${cols}</b> に揃う。</li>
             <li><b>操作：</b> その 2 列の他行から ${h.d} を削除（例：${elim}）。</li>
-            <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+            ${resultLine(h)}
           </ol>`;
       return `
         <div><strong>X-Wing（列基準／数字 ${h.d}）</strong></div>
         <ol>
           <li><b>観察：</b> 列 ${cols} の ${h.d} 候補が 2 行 <b>${rows}</b> に揃う。</li>
           <li><b>操作：</b> その 2 行の他列から ${h.d} を削除（例：${elim}）。</li>
-          <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+          ${resultLine(h)}
         </ol>`;
     },
     ywing: h => {
@@ -119,7 +122,7 @@
           <li><b>観察：</b> ピボット ${P}={${h.x},${h.y}}、ピンサー ${A}={${h.x},${h.z}} と ${B}={${h.y},${h.z}}。</li>
           <li><b>論理：</b> ${P} が ${h.x} なら ${A} は <b>${h.z}</b>、${P} が ${h.y} なら ${B} は <b>${h.z}</b> → A/B どちらかは必ず <b>${h.z}</b>。</li>
           <li><b>操作：</b> A と B の両方から見えるマスから <b>${h.z}</b> を削除（例：${elim}）。</li>
-          <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+          ${resultLine(h)}
         </ol>`;
     },
     locked: h => {
@@ -130,7 +133,7 @@
           <ol>
             <li><b>観察：</b> ${box} 内の <b>${h.base}</b> 候補が同一行に集中。</li>
             <li><b>操作：</b> その行の他ブロック部分から <b>${h.base}</b> を削除。</li>
-            <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+            ${resultLine(h)}
           </ol>`;
       if (h.kind === 'locked-pointing-col')
         return `
@@ -138,7 +141,7 @@
           <ol>
             <li><b>観察：</b> ${box} 内の <b>${h.base}</b> 候補が同一列に集中。</li>
             <li><b>操作：</b> その列の他ブロック部分から <b>${h.base}</b> を削除。</li>
-            <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+            ${resultLine(h)}
           </ol>`;
       if (h.kind === 'locked-claiming-row')
         return `
@@ -146,14 +149,14 @@
           <ol>
             <li><b>観察：</b> 行における <b>${h.base}</b> 候補が ${box} のみに存在。</li>
             <li><b>操作：</b> ${box} の他行から <b>${h.base}</b> を削除。</li>
-            <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+            ${resultLine(h)}
           </ol>`;
       return `
         <div><strong>Locked Candidates – Claiming（列c${h.col+1} → ${box}）</strong></div>
         <ol>
           <li><b>観察：</b> 列における <b>${h.base}</b> 候補が ${box} のみに存在。</li>
           <li><b>操作：</b> ${box} の他列から <b>${h.base}</b> を削除。</li>
-          <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+          ${resultLine(h)}
         </ol>`;
     },
     // ★ 追加：Swordfish（X-Wing の 3 本版）
@@ -167,7 +170,7 @@
           <ol>
             <li><b>観察：</b> 3 行（${rows}）で ${h.d} の候補列が同じ 3 列（<b>${cols}</b>）に限定。</li>
             <li><b>操作：</b> その 3 列の <b>他の行</b>から ${h.d} を削除（例：${elim}）。</li>
-            <li><b>結果：</b> 候補が整理され、${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+            ${resultLine(h)}
           </ol>`;
       // 列基準
       return `
@@ -175,7 +178,27 @@
         <ol>
           <li><b>観察：</b> 3 列（${cols}）で ${h.d} の候補行が同じ 3 行（<b>${rows}</b>）に限定。</li>
           <li><b>操作：</b> その 3 行の <b>他の列</b>から ${h.d} を削除（例：${elim}）。</li>
-          <li><b>結果：</b> 候補が整理され、${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+          ${resultLine(h)}
+        </ol>`;
+    },
+    jellyfish: h => {
+      const rows = h.rows.map(r=>`r${r+1}`).join('・');
+      const cols = h.cols.map(c=>`c${c+1}`).join('・');
+      const elim = h.eliminated ? h.eliminated.map(([r,c])=>rcTag(r,c)).slice(0,6).join('、') + (h.eliminated.length>6?` など（全${h.eliminated.length}マス）`:'') : '—';
+      if(h.kind==='jellyfish-row')
+        return `
+          <div><strong>Jellyfish（行基準／数字 ${h.d}）</strong></div>
+          <ol>
+            <li><b>観察：</b> 4 行（${rows}）で ${h.d} の候補列が同じ 4 列（<b>${cols}</b>）に限定。</li>
+            <li><b>操作：</b> その 4 列の <b>他の行</b>から ${h.d} を削除（例：${elim}）。</li>
+            ${resultLine(h)}
+          </ol>`;
+      return `
+        <div><strong>Jellyfish（列基準／数字 ${h.d}）</strong></div>
+        <ol>
+          <li><b>観察：</b> 4 列（${cols}）で ${h.d} の候補行が同じ 4 行（<b>${rows}</b>）に限定。</li>
+          <li><b>操作：</b> その 4 行の <b>他の列</b>から ${h.d} を削除（例：${elim}）。</li>
+          ${resultLine(h)}
         </ol>`;
     },
     // ★ 追加：Quads（Naked/Hidden）
@@ -190,14 +213,14 @@
           <ol>
             <li><b>観察：</b> ${cells} の候補合併が <b>${Q}</b> の 4 種に限定。</li>
             <li><b>操作：</b> ${where} の他マスから ${Q} を削除。</li>
-            <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+            ${resultLine(h)}
           </ol>`;
       return `
         <div><strong>Hidden Quad（${where}）</strong></div>
         <ol>
           <li><b>観察：</b> ${Q} の出現可能位置の和集合が <b>4マス（${cells}）</b>。</li>
           <li><b>操作：</b> その 4 マスから ${Q} 以外を削除。</li>
-          <li><b>結果：</b> ${rcTag(h.r,h.c)} = <b>${h.d}</b>。</li>
+          ${resultLine(h)}
         </ol>`;
     }
   };

@@ -94,11 +94,23 @@
       if(!cells) return;
       for(const [r,c] of cells){ wraps[r][c].classList.add(cls); }
     }
+    function markElims(elims){
+      if(!elims) return;
+      const seen = new Set();
+      for(const e of elims){
+        const key = `${e.r},${e.c}`;
+        if(seen.has(key)) continue;
+        seen.add(key);
+        wraps[e.r][e.c].classList.add('hint-elim');
+      }
+    }
     function showHintMode(cand, move){
       hintActive = true;
-      window.SudokuGrid.showCandidates(cand, readGrid());
+      window.SudokuGrid.showCandidates(cand, readGrid(), move.eliminations);
       clearHintMarks();
-      wraps[move.r][move.c].classList.add('hint-target');
+      if(move.action === 'place' && Number.isInteger(move.r) && Number.isInteger(move.c)){
+        wraps[move.r][move.c].classList.add('hint-target');
+      }
       markCells(move.pairCells, 'hint-focus');
       markCells(move.tripleCells, 'hint-focus');
       markCells(move.quadCells, 'hint-focus');
@@ -106,6 +118,7 @@
       if(move.p1) markCells([move.p1], 'hint-focus');
       if(move.p2) markCells([move.p2], 'hint-focus');
       markCells(move.eliminated, 'hint-elim');
+      markElims(move.eliminations);
     }
 
     // 盤面生成 & 入力イベント
@@ -169,6 +182,12 @@
       const move = computeNextHint(cand);
       if(!move){ setMsg('今は確定ヒントなし。','warn'); return; }
       const {r,c,d,reason} = move;
+      if(move.action === 'eliminate'){
+        showHintMode(cand, move);
+        const count = move.eliminations ? move.eliminations.length : 0;
+        setMsg(`<div><strong>消去ヒント：</strong>候補を ${count} 箇所削除できます。</div>` + reason + '<div><small>※候補はヒント時点の表示（次の操作で非表示）</small></div>', 'ok');
+        return;
+      }
       if(wraps[r][c].classList.contains('given')){ setMsg('そのマスは固定（黒）です。','warn'); return; }
 
       // ★ヒントを「1手適用」＋ 緑色にする（manual + hinted）
@@ -251,7 +270,7 @@
     const H = window.SudokuHints;
 
     // 優先度：「わかりやすい → 難しい」
-    // Hidden → Naked → Locked → Pairs → Triples → X-Wing → Swordfish → Y-Wing → Quads
+    // Hidden → Naked → Locked → Pairs → Triples → X-Wing → Swordfish → Jellyfish → Y-Wing → Quads
     const order = [
       H.findHidden,
       H.findNaked,
@@ -260,12 +279,14 @@
       H.findTriples,
       H.findXWing,
       H.findSwordfish,   // ★追加
+      H.findJellyfish,   // ★追加
       H.findYWing,
       H.findQuads        // ★追加（Naked/Hidden Quad）
     ];
 
+    const opts = {allowElim:true};
     for(const fn of order){
-      const h = fn && fn(cand);
+      const h = fn && fn(cand, opts);
       if(h){
         // 解説は reasons.js 側で詳細化
         const R = window.Reasons;
@@ -278,9 +299,11 @@
           (h.kind==='ywing')              ? R.ywing(h)   :
           (h.kind?.includes('locked'))    ? R.locked(h)  :
           (h.kind?.includes('swordfish')) ? R.swordfish(h):
+          (h.kind?.includes('jellyfish')) ? R.jellyfish(h):
           (h.kind?.includes('quad'))      ? R.quads(h)   :
           '論理の詳細は未定義です。';
-        return {r:h.r, c:h.c, d:h.d, reason};
+        const action = h.action || (Number.isInteger(h.r) ? 'place' : 'eliminate');
+        return {...h, action, reason};
       }
     }
     return null;

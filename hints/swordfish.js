@@ -2,9 +2,16 @@
 // Swordfish（X-Wingの3本版）：除去→新しい Naked single が出たら 1手提示
 (function(w){
   const clone = cand => cand.map(row=>row.map(a=>a.slice()));
+  const diffElims = (prev,next)=>{
+    const out=[];
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+      for(const d of prev[r][c]) if(!next[r][c].includes(d)) out.push({r,c,d});
+    }
+    return out;
+  };
   const newSingle=(next,prev)=>{ for(let r=0;r<9;r++)for(let c=0;c<9;c++) if(prev[r][c].length!==1 && next[r][c].length===1) return {r,c,d:next[r][c][0]}; return null; };
 
-  function rowSwordfish(cand){
+  function rowSwordfish(cand, opts){
     for(let d=1; d<=9; d++){
       // 各行で d の候補列リストを収集（サイズ2〜3に限定）
       const rowsInfo = [];
@@ -29,14 +36,16 @@
           }
         }
         if(!changed) continue;
+        const eliminations = diffElims(cand,next);
         const s=newSingle(next,cand);
-        if(s) return {...s,kind:'swordfish-row',d,rows,cols:[c1,c2,c3],eliminated};
+        if(s) return {...s,action:'place',kind:'swordfish-row',d,rows,cols:[c1,c2,c3],eliminated,eliminations};
+        if(opts && opts.allowElim) return {action:'eliminate',kind:'swordfish-row',d,rows,cols:[c1,c2,c3],eliminated,eliminations};
       }
     }
     return null;
   }
 
-  function colSwordfish(cand){
+  function colSwordfish(cand, opts){
     for(let d=1; d<=9; d++){
       const colsInfo = [];
       for(let c=0;c<9;c++){
@@ -59,14 +68,16 @@
           }
         }
         if(!changed) continue;
+        const eliminations = diffElims(cand,next);
         const s=newSingle(next,cand);
-        if(s) return {...s,kind:'swordfish-col',d,rows:[r1,r2,r3],cols,eliminated};
+        if(s) return {...s,action:'place',kind:'swordfish-col',d,rows:[r1,r2,r3],cols,eliminated,eliminations};
+        if(opts && opts.allowElim) return {action:'eliminate',kind:'swordfish-col',d,rows:[r1,r2,r3],cols,eliminated,eliminations};
       }
     }
     return null;
   }
 
-  function findSwordfish(cand){ return rowSwordfish(cand) || colSwordfish(cand) || null; }
+  function findSwordfish(cand, opts){ return rowSwordfish(cand,opts) || colSwordfish(cand,opts) || null; }
 
   w.SudokuHints = w.SudokuHints || {};
   w.SudokuHints.findSwordfish = findSwordfish;

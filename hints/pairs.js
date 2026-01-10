@@ -8,6 +8,13 @@
 // ------------------------------------------------------------
 (function(w){
   const clone = cand => cand.map(row=>row.map(a=>a.slice()));
+  const diffElims = (prev,next)=>{
+    const out=[];
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+      for(const d of prev[r][c]) if(!next[r][c].includes(d)) out.push({r,c,d});
+    }
+    return out;
+  };
   const bix = (r,c)=>Math.floor(r/3)*3+Math.floor(c/3);
   const newSingle=(next,prev)=>{
     for(let r=0;r<9;r++)for(let c=0;c<9;c++)
@@ -15,7 +22,7 @@
     return null;
   };
 
-  function tryNakedInRow(cand){
+  function tryNakedInRow(cand, opts){
     for(let r=0;r<9;r++){
       const map=new Map(); // "a,b" -> [c1,c2,...]
       for(let c=0;c<9;c++){
@@ -35,14 +42,17 @@
             }
           }
           if(!changed) continue;
-          const s=newSingle(next,cand); if(s) return {...s,kind:'naked-pair-row',row:r,pair:[a,b],pairCells:[[r,cols[0]],[r,cols[1]]] };
+          const eliminations = diffElims(cand,next);
+          const s=newSingle(next,cand);
+          if(s) return {...s,action:'place',kind:'naked-pair-row',row:r,pair:[a,b],pairCells:[[r,cols[0]],[r,cols[1]]],eliminations };
+          if(opts && opts.allowElim) return {action:'eliminate',kind:'naked-pair-row',row:r,pair:[a,b],pairCells:[[r,cols[0]],[r,cols[1]]],eliminations };
         }
       }
     }
     return null;
   }
 
-  function tryNakedInCol(cand){
+  function tryNakedInCol(cand, opts){
     for(let c=0;c<9;c++){
       const map=new Map();
       for(let r=0;r<9;r++){
@@ -61,14 +71,18 @@
               i=arr.indexOf(b); if(i>=0){arr.splice(i,1); changed=true;}
             }
           }
-          const s=changed?newSingle(next,cand):null; if(s) return {...s,kind:'naked-pair-col',col:c,pair:[a,b],pairCells:[[rows[0],c],[rows[1],c]] };
+          if(!changed) continue;
+          const eliminations = diffElims(cand,next);
+          const s=newSingle(next,cand);
+          if(s) return {...s,action:'place',kind:'naked-pair-col',col:c,pair:[a,b],pairCells:[[rows[0],c],[rows[1],c]],eliminations };
+          if(opts && opts.allowElim) return {action:'eliminate',kind:'naked-pair-col',col:c,pair:[a,b],pairCells:[[rows[0],c],[rows[1],c]],eliminations };
         }
       }
     }
     return null;
   }
 
-  function tryNakedInBox(cand){
+  function tryNakedInBox(cand, opts){
     for(let b=0;b<9;b++){
       const br=Math.floor(b/3)*3, bc=(b%3)*3;
       const map=new Map(); // "a,b" -> [[r,c],...]
@@ -90,7 +104,11 @@
               i=arr.indexOf(b); if(i>=0){arr.splice(i,1); changed=true;}
             }
           }
-          const s=changed?newSingle(next,cand):null; if(s) return {...s,kind:'naked-pair-box',box:b,pair:[a,b],pairCells:cells };
+          if(!changed) continue;
+          const eliminations = diffElims(cand,next);
+          const s=newSingle(next,cand);
+          if(s) return {...s,action:'place',kind:'naked-pair-box',box:b,pair:[a,b],pairCells:cells,eliminations };
+          if(opts && opts.allowElim) return {action:'eliminate',kind:'naked-pair-box',box:b,pair:[a,b],pairCells:cells,eliminations };
         }
       }
     }
@@ -98,7 +116,7 @@
   }
 
   function tryHiddenInUnit(getCells, label){
-    return function(cand){
+    return function(cand, opts){
       for(let unit=0;unit<9;unit++){
         const posByDigit=Array.from({length:10},()=>[]);
         const cells=getCells(unit);
@@ -115,12 +133,19 @@
               if(arr.length!==next[r][c].length){ next[r][c]=arr; changed=true; }
             }
             if(!changed) continue;
+            const eliminations = diffElims(cand,next);
             const s=newSingle(next,cand);
             if(s){
               const payload={ pair:[a,b], pairCells:A };
-              if(label==='row') return {...s,kind:'hidden-pair-row',row:unit,...payload};
-              if(label==='col') return {...s,kind:'hidden-pair-col',col:unit,...payload};
-              return {...s,kind:'hidden-pair-box',box:unit,...payload};
+              if(label==='row') return {...s,action:'place',kind:'hidden-pair-row',row:unit,...payload,eliminations};
+              if(label==='col') return {...s,action:'place',kind:'hidden-pair-col',col:unit,...payload,eliminations};
+              return {...s,action:'place',kind:'hidden-pair-box',box:unit,...payload,eliminations};
+            }
+            if(opts && opts.allowElim){
+              const payload={ pair:[a,b], pairCells:A, eliminations };
+              if(label==='row') return {action:'eliminate',kind:'hidden-pair-row',row:unit,...payload};
+              if(label==='col') return {action:'eliminate',kind:'hidden-pair-col',col:unit,...payload};
+              return {action:'eliminate',kind:'hidden-pair-box',box:unit,...payload};
             }
           }
         }
@@ -137,10 +162,10 @@
   const tryHiddenCol = tryHiddenInUnit(colCells,'col');
   const tryHiddenBox = tryHiddenInUnit(boxCells,'box');
 
-  function findPairs(cand){
+  function findPairs(cand, opts){
     // 優先: Naked(行→列→箱) → Hidden(行→列→箱)
-    return tryNakedInRow(cand) || tryNakedInCol(cand) || tryNakedInBox(cand)
-        || tryHiddenRow(cand)   || tryHiddenCol(cand)   || tryHiddenBox(cand)
+    return tryNakedInRow(cand,opts) || tryNakedInCol(cand,opts) || tryNakedInBox(cand,opts)
+        || tryHiddenRow(cand,opts)   || tryHiddenCol(cand,opts)   || tryHiddenBox(cand,opts)
         || null;
   }
 

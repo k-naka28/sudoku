@@ -16,9 +16,16 @@
 // ------------------------------------------------------------
 (function(w){
   const clone = cand => cand.map(row=>row.map(a=>a.slice()));
+  const diffElims = (prev,next)=>{
+    const out=[];
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+      for(const d of prev[r][c]) if(!next[r][c].includes(d)) out.push({r,c,d});
+    }
+    return out;
+  };
   const newSingle=(next,prev)=>{ for(let r=0;r<9;r++)for(let c=0;c<9;c++) if(prev[r][c].length!==1 && next[r][c].length===1) return {r,c,d:next[r][c][0]}; return null; };
 
-  function rowXWing(cand){
+  function rowXWing(cand, opts){
     for(let d=1; d<=9; d++){
       const map = new Map(); // "c1,c2" -> [row1,row2,...]
       for(let r=0;r<9;r++){
@@ -42,15 +49,17 @@
             }
           }
           if(!changed) continue;
+          const eliminations = diffElims(cand,next);
           const s=newSingle(next,cand);
-          if(s) return {...s,kind:'xwing-row',d,rows:[r1,r2],cols:[c1,c2],eliminated};
+          if(s) return {...s,action:'place',kind:'xwing-row',d,rows:[r1,r2],cols:[c1,c2],eliminated,eliminations};
+          if(opts && opts.allowElim) return {action:'eliminate',kind:'xwing-row',d,rows:[r1,r2],cols:[c1,c2],eliminated,eliminations};
         }
       }
     }
     return null;
   }
 
-  function colXWing(cand){
+  function colXWing(cand, opts){
     for(let d=1; d<=9; d++){
       const map = new Map(); // "r1,r2" -> [col1,col2,...]
       for(let c=0;c<9;c++){
@@ -74,15 +83,17 @@
             }
           }
           if(!changed) continue;
+          const eliminations = diffElims(cand,next);
           const s=newSingle(next,cand);
-          if(s) return {...s,kind:'xwing-col',d,rows:[r1,r2],cols:[c1,c2],eliminated};
+          if(s) return {...s,action:'place',kind:'xwing-col',d,rows:[r1,r2],cols:[c1,c2],eliminated,eliminations};
+          if(opts && opts.allowElim) return {action:'eliminate',kind:'xwing-col',d,rows:[r1,r2],cols:[c1,c2],eliminated,eliminations};
         }
       }
     }
     return null;
   }
 
-  function findXWing(cand){ return rowXWing(cand) || colXWing(cand) || null; }
+  function findXWing(cand, opts){ return rowXWing(cand,opts) || colXWing(cand,opts) || null; }
   w.SudokuHints = w.SudokuHints || {};
   w.SudokuHints.findXWing = findXWing;
 })(window);

@@ -14,6 +14,13 @@
 // ------------------------------------------------------------
 (function(w){
   const clone = cand => cand.map(row=>row.map(a=>a.slice()));
+  const diffElims = (prev,next)=>{
+    const out=[];
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+      for(const d of prev[r][c]) if(!next[r][c].includes(d)) out.push({r,c,d});
+    }
+    return out;
+  };
   const newSingle=(next,prev)=>{
     for(let r=0;r<9;r++)for(let c=0;c<9;c++)
       if(prev[r][c].length!==1 && next[r][c].length===1) return {r,c,d:next[r][c][0]};
@@ -30,7 +37,7 @@
 
   // ---- Naked Triple ----
   function tryNakedInUnit(getCells, label){
-    return function(cand){
+    return function(cand, opts){
       for(let u=0; u<9; u++){
         const cells = getCells(u).filter(([r,c])=>cand[r][c].length>=2 && cand[r][c].length<=3);
         for(let i=0;i<cells.length;i++){
@@ -52,12 +59,19 @@
                 }
               }
               if(!changed) continue;
+              const eliminations = diffElims(cand,next);
               const s=newSingle(next,cand);
               if(s){
                 const payload={ triple:digs, tripleCells:cc };
-                if(label==='row') return {...s,kind:'naked-triple-row',row:u,...payload};
-                if(label==='col') return {...s,kind:'naked-triple-col',col:u,...payload};
-                return {...s,kind:'naked-triple-box',box:u,...payload};
+                if(label==='row') return {...s,action:'place',kind:'naked-triple-row',row:u,...payload,eliminations};
+                if(label==='col') return {...s,action:'place',kind:'naked-triple-col',col:u,...payload,eliminations};
+                return {...s,action:'place',kind:'naked-triple-box',box:u,...payload,eliminations};
+              }
+              if(opts && opts.allowElim){
+                const payload={ triple:digs, tripleCells:cc, eliminations };
+                if(label==='row') return {action:'eliminate',kind:'naked-triple-row',row:u,...payload};
+                if(label==='col') return {action:'eliminate',kind:'naked-triple-col',col:u,...payload};
+                return {action:'eliminate',kind:'naked-triple-box',box:u,...payload};
               }
             }
           }
@@ -69,7 +83,7 @@
 
   // ---- Hidden Triple（厳密版）----
   function tryHiddenInUnit(getCells, label){
-    return function(cand){
+    return function(cand, opts){
       for(let u=0; u<9; u++){
         const cells = getCells(u);
         const pos = Array.from({length:10},()=>[]);
@@ -92,12 +106,19 @@
               }
               if(!changed) continue;
 
+              const eliminations = diffElims(cand,next);
               const s=newSingle(next,cand);
               if(s){
                 const payload={ triple:[a,b,c], tripleCells:union };
-                if(label==='row') return {...s,kind:'hidden-triple-row',row:u,...payload};
-                if(label==='col') return {...s,kind:'hidden-triple-col',col:u,...payload};
-                return {...s,kind:'hidden-triple-box',box:u,...payload};
+                if(label==='row') return {...s,action:'place',kind:'hidden-triple-row',row:u,...payload,eliminations};
+                if(label==='col') return {...s,action:'place',kind:'hidden-triple-col',col:u,...payload,eliminations};
+                return {...s,action:'place',kind:'hidden-triple-box',box:u,...payload,eliminations};
+              }
+              if(opts && opts.allowElim){
+                const payload={ triple:[a,b,c], tripleCells:union, eliminations };
+                if(label==='row') return {action:'eliminate',kind:'hidden-triple-row',row:u,...payload};
+                if(label==='col') return {action:'eliminate',kind:'hidden-triple-col',col:u,...payload};
+                return {action:'eliminate',kind:'hidden-triple-box',box:u,...payload};
               }
             }
           }
@@ -107,9 +128,9 @@
     };
   }
 
-  function findTriples(cand){
-    return tryNakedInUnit(rowCells,'row')(cand) || tryNakedInUnit(colCells,'col')(cand) || tryNakedInUnit(boxCells,'box')(cand)
-        || tryHiddenInUnit(rowCells,'row')(cand) || tryHiddenInUnit(colCells,'col')(cand) || tryHiddenInUnit(boxCells,'box')(cand)
+  function findTriples(cand, opts){
+    return tryNakedInUnit(rowCells,'row')(cand,opts) || tryNakedInUnit(colCells,'col')(cand,opts) || tryNakedInUnit(boxCells,'box')(cand,opts)
+        || tryHiddenInUnit(rowCells,'row')(cand,opts) || tryHiddenInUnit(colCells,'col')(cand,opts) || tryHiddenInUnit(boxCells,'box')(cand,opts)
         || null;
   }
 

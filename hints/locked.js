@@ -11,10 +11,17 @@
 // ------------------------------------------------------------
 (function(w){
   const clone = cand => cand.map(row=>row.map(a=>a.slice()));
+  const diffElims = (prev,next)=>{
+    const out=[];
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+      for(const d of prev[r][c]) if(!next[r][c].includes(d)) out.push({r,c,d});
+    }
+    return out;
+  };
   const bix = (r,c)=>Math.floor(r/3)*3+Math.floor(c/3);
   const newSingle=(next,prev)=>{for(let r=0;r<9;r++)for(let c=0;c<9;c++)if(prev[r][c].length!==1&&next[r][c].length===1)return{r,c,d:next[r][c][0]};return null};
 
-  function findLocked(cand){
+  function findLocked(cand, opts){
     // Pointing（箱→行/列）
     for(let b=0;b<9;b++){
       const br=Math.floor(b/3)*3,bc=(b%3)*3;
@@ -25,12 +32,22 @@
         if(sameRow){
           const r=pos[0][0], next=clone(cand); let ch=false;
           for(let c=0;c<9;c++) if(c<bc||c>bc+2){const a=next[r][c];const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true}}
-          if(ch){const s=newSingle(next,cand); if(s) return {...s,kind:'locked-pointing-row',box:b,row:r,base:d} }
+          if(ch){
+            const eliminations = diffElims(cand,next);
+            const s=newSingle(next,cand);
+            if(s) return {...s,action:'place',kind:'locked-pointing-row',box:b,row:r,base:d,eliminations};
+            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-pointing-row',box:b,row:r,base:d,eliminations};
+          }
         }
         if(sameCol){
           const c=pos[0][1], next=clone(cand); let ch=false;
           for(let r=0;r<9;r++) if(r<br||r>br+2){const a=next[r][c];const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true}}
-          if(ch){const s=newSingle(next,cand); if(s) return {...s,kind:'locked-pointing-col',box:b,col:c,base:d} }
+          if(ch){
+            const eliminations = diffElims(cand,next);
+            const s=newSingle(next,cand);
+            if(s) return {...s,action:'place',kind:'locked-pointing-col',box:b,col:c,base:d,eliminations};
+            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-pointing-col',box:b,col:c,base:d,eliminations};
+          }
         }
       }
     }
@@ -45,7 +62,12 @@
             const rr=br+dr,cc=bc+dc;
             if(rr!==r){ const a=next[rr][cc]; const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true} }
           }
-          if(ch){const s=newSingle(next,cand); if(s) return {...s,kind:'locked-claiming-row',box:b,row:r,base:d} }
+          if(ch){
+            const eliminations = diffElims(cand,next);
+            const s=newSingle(next,cand);
+            if(s) return {...s,action:'place',kind:'locked-claiming-row',box:b,row:r,base:d,eliminations};
+            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-claiming-row',box:b,row:r,base:d,eliminations};
+          }
         }
       }
     }
@@ -59,7 +81,12 @@
             const rr=br+dr,cc=bc+dc;
             if(cc!==c){ const a=next[rr][cc]; const i=a.indexOf(d); if(i>=0){a.splice(i,1); ch=true} }
           }
-          if(ch){const s=newSingle(next,cand); if(s) return {...s,kind:'locked-claiming-col',box:b,col:c,base:d} }
+          if(ch){
+            const eliminations = diffElims(cand,next);
+            const s=newSingle(next,cand);
+            if(s) return {...s,action:'place',kind:'locked-claiming-col',box:b,col:c,base:d,eliminations};
+            if(opts && opts.allowElim) return {action:'eliminate',kind:'locked-claiming-col',box:b,col:c,base:d,eliminations};
+          }
         }
       }
     }

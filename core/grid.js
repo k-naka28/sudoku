@@ -20,15 +20,25 @@
   function clearFlags(){for(let r=0;r<9;r++)for(let c=0;c<9;c++){wraps[r][c].className=`cell r${r} c${c}`;inputs[r][c].readOnly=false}}
   function applyGivenMask(g){clearFlags();for(let r=0;r<9;r++)for(let c=0;c<9;c++)if(g[r][c]){wraps[r][c].classList.add('given');inputs[r][c].readOnly=true}}
   function setManualColor(v){document.documentElement.style.setProperty('--manual-color', v==='blue'?'#1d4ed8':'#111')}
-  function showCandidates(cand, grid){
+  function showCandidates(cand, grid, eliminations){
     if(!boardEl) return;
     boardEl.classList.add('show-cand');
+    const elimMap = new Map();
+    if(eliminations){
+      for(const e of eliminations){
+        const key = `${e.r},${e.c}`;
+        if(!elimMap.has(key)) elimMap.set(key, new Set());
+        elimMap.get(key).add(e.d);
+      }
+    }
     for(let r=0;r<9;r++)for(let c=0;c<9;c++){
       const cellCands = cand[r][c] || [];
       const spans = cands[r][c].children;
       const filled = grid && grid[r][c];
+      const elim = elimMap.get(`${r},${c}`);
       for(let d=1;d<=9;d++){
         spans[d-1].textContent = (!filled && cellCands.includes(d)) ? String(d) : '';
+        spans[d-1].className = (elim && elim.has(d)) ? 'elim' : '';
       }
     }
   }

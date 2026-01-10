@@ -2,6 +2,13 @@
 // Naked/Hidden Quad：除去→新しい Naked single が出たら 1手提示
 (function(w){
   const clone = cand => cand.map(row=>row.map(a=>a.slice()));
+  const diffElims = (prev,next)=>{
+    const out=[];
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+      for(const d of prev[r][c]) if(!next[r][c].includes(d)) out.push({r,c,d});
+    }
+    return out;
+  };
   const newSingle=(next,prev)=>{
     for(let r=0;r<9;r++)for(let c=0;c<9;c++)
       if(prev[r][c].length!==1 && next[r][c].length===1) return {r,c,d:next[r][c][0]};
@@ -16,7 +23,7 @@
   // 条件: 単位内の 4 マスの候補の合併がちょうど 4 数字（各セルは 2〜4 候補、すべてがその4数字の部分集合）
   // 効果: 単位内の「他のマス」からその 4 数字を一括削除
   function tryNakedInUnit(getCells, label){
-    return function(cand){
+    return function(cand, opts){
       for(let u=0; u<9; u++){
         // 2〜4候補のマスのみを対象に（それ以外は Naked Quad に関与しない）
         const cells = getCells(u).filter(([r,c])=>{
@@ -60,14 +67,21 @@
                   }
                 }
                 if(!changed) continue;
+                const eliminations = diffElims(cand,next);
 
                 // 削除の結果、生じた新しい Naked single を 1 手として提示
                 const s=newSingle(next,cand);
                 if(s){
                   const payload={ quad:digits.sort((a,b)=>a-b), quadCells:quad };
-                  if(label==='row') return {...s,kind:'naked-quad-row',row:u,...payload};
-                  if(label==='col') return {...s,kind:'naked-quad-col',col:u,...payload};
-                  return {...s,kind:'naked-quad-box',box:u,...payload};
+                  if(label==='row') return {...s,action:'place',kind:'naked-quad-row',row:u,...payload,eliminations};
+                  if(label==='col') return {...s,action:'place',kind:'naked-quad-col',col:u,...payload,eliminations};
+                  return {...s,action:'place',kind:'naked-quad-box',box:u,...payload,eliminations};
+                }
+                if(opts && opts.allowElim){
+                  const payload={ quad:digits.sort((a,b)=>a-b), quadCells:quad, eliminations };
+                  if(label==='row') return {action:'eliminate',kind:'naked-quad-row',row:u,...payload};
+                  if(label==='col') return {action:'eliminate',kind:'naked-quad-col',col:u,...payload};
+                  return {action:'eliminate',kind:'naked-quad-box',box:u,...payload};
                 }
               }
             }
@@ -82,7 +96,7 @@
   // 条件: 4 数字 {a,b,c,d} の「出現可能位置」の和集合が単位内でちょうど 4 マス
   // 効果: その 4 マスから {a,b,c,d} 以外を削除
   function tryHiddenInUnit(getCells, label){
-    return function(cand){
+    return function(cand, opts){
       for(let u=0; u<9; u++){
         const cells = getCells(u);
         const pos = Array.from({length:10},()=>[]);
@@ -107,12 +121,19 @@
                 }
                 if(!changed) continue;
 
+                const eliminations = diffElims(cand,next);
                 const s=newSingle(next,cand);
                 if(s){
                   const payload={ quad:[a,b,c,d], quadCells:quad };
-                  if(label==='row') return {...s,kind:'hidden-quad-row',row:u,...payload};
-                  if(label==='col') return {...s,kind:'hidden-quad-col',col:u,...payload};
-                  return {...s,kind:'hidden-quad-box',box:u,...payload};
+                  if(label==='row') return {...s,action:'place',kind:'hidden-quad-row',row:u,...payload,eliminations};
+                  if(label==='col') return {...s,action:'place',kind:'hidden-quad-col',col:u,...payload,eliminations};
+                  return {...s,action:'place',kind:'hidden-quad-box',box:u,...payload,eliminations};
+                }
+                if(opts && opts.allowElim){
+                  const payload={ quad:[a,b,c,d], quadCells:quad, eliminations };
+                  if(label==='row') return {action:'eliminate',kind:'hidden-quad-row',row:u,...payload};
+                  if(label==='col') return {action:'eliminate',kind:'hidden-quad-col',col:u,...payload};
+                  return {action:'eliminate',kind:'hidden-quad-box',box:u,...payload};
                 }
               }
             }
@@ -123,9 +144,9 @@
     };
   }
 
-  function findQuads(cand){
-    return tryNakedInUnit(rowCells,'row')(cand) || tryNakedInUnit(colCells,'col')(cand) || tryNakedInUnit(boxCells,'box')(cand)
-        || tryHiddenInUnit(rowCells,'row')(cand) || tryHiddenInUnit(colCells,'col')(cand) || tryHiddenInUnit(boxCells,'box')(cand)
+  function findQuads(cand, opts){
+    return tryNakedInUnit(rowCells,'row')(cand,opts) || tryNakedInUnit(colCells,'col')(cand,opts) || tryNakedInUnit(boxCells,'box')(cand,opts)
+        || tryHiddenInUnit(rowCells,'row')(cand,opts) || tryHiddenInUnit(colCells,'col')(cand,opts) || tryHiddenInUnit(boxCells,'box')(cand,opts)
         || null;
   }
 

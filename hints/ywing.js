@@ -42,6 +42,13 @@
 // ------------------------------------------------------------
 (function(w){
   const clone = cand => cand.map(row=>row.map(a=>a.slice()));
+  const diffElims = (prev,next)=>{
+    const out=[];
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+      for(const d of prev[r][c]) if(!next[r][c].includes(d)) out.push({r,c,d});
+    }
+    return out;
+  };
   const newSingle=(next,prev)=>{ for(let r=0;r<9;r++)for(let c=0;c<9;c++) if(prev[r][c].length!==1 && next[r][c].length===1) return {r,c,d:next[r][c][0]}; return null; };
 
   // あるセル (r,c) から「見える（同一行・列・ブロック）」マスの集合
@@ -62,7 +69,7 @@
   const sees = (a,b)=> a[0]===b[0] || a[1]===b[1]
     || (Math.floor(a[0]/3)===Math.floor(b[0]/3) && Math.floor(a[1]/3)===Math.floor(b[1]/3));
 
-  function findYWing(cand){
+  function findYWing(cand, opts){
     const bivalue=[];
     for(let r=0;r<9;r++) for(let c=0;c<9;c++) if(cand[r][c].length===2) bivalue.push([r,c]);
 
@@ -102,8 +109,10 @@
           if(!changed) continue; // 何も消せなければ不成立
 
           // 消去で新しい Naked single が生まれたら、それを 1 手ヒントとして返す
+          const eliminations = diffElims(cand,next);
           const s=newSingle(next,cand);
-          if(s) return {...s,kind:'ywing',pivot:[pr,pc],p1:[ar,ac],p2:[br,bc],x,y,z,eliminated};
+          if(s) return {...s,action:'place',kind:'ywing',pivot:[pr,pc],p1:[ar,ac],p2:[br,bc],x,y,z,eliminated,eliminations};
+          if(opts && opts.allowElim) return {action:'eliminate',kind:'ywing',pivot:[pr,pc],p1:[ar,ac],p2:[br,bc],x,y,z,eliminated,eliminations};
         }
       }
     }

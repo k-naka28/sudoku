@@ -10,7 +10,7 @@
 <body>
   <header>
     <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.9</span></h1>
-    <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。ヒントは押すと<strong>1手が盤面に入力</strong>されます。</p>
+    <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。ヒントは<strong>確定手は入力</strong>、確定できない場合は<strong>候補消去を提示</strong>します。</p>
   </header>
 
   <main>
@@ -70,6 +70,7 @@
   <script defer src="./ui/reasons.js"></script>
   <script defer src="./hints/quads.js"></script>
   <script defer src="./hints/swordfish.js"></script>
+  <script defer src="./hints/jellyfish.js"></script>
 
   <script defer src="./app.js?v=1.9"></script>
 </body>
