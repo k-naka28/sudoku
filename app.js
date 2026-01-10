@@ -3,7 +3,7 @@
 (function(){
   // ---------- ユーティリティ ----------
   const $ = id => document.getElementById(id);
-  const coord = (r,c)=>`${c+1}${String.fromCharCode(65+r)}`;
+  const coord = (r,c)=>`${String.fromCharCode(65+c)}${r+1}`;
   const rc = (r,c)=>coord(r,c);
   const rcTag = (r,c)=>`<code>${rc(r,c)}</code>`;
 
@@ -119,11 +119,11 @@
       col.innerHTML = '';
       row.innerHTML = '';
       for(let c=0;c<9;c++){
-        const d=document.createElement('div'); d.className='label'; d.textContent=String(c+1);
+        const d=document.createElement('div'); d.className='label'; d.textContent=String.fromCharCode(65+c);
         col.appendChild(d);
       }
       for(let r=0;r<9;r++){
-        const d=document.createElement('div'); d.className='label'; d.textContent=String.fromCharCode(65+r);
+        const d=document.createElement('div'); d.className='label'; d.textContent=String(r+1);
         row.appendChild(d);
       }
     }

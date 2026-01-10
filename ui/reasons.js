@@ -1,7 +1,7 @@
 // ui/reasons.js
 (function(w){
-  const rowLabel = r => String.fromCharCode(65+r);
-  const colLabel = c => String(c+1);
+  const rowLabel = r => String(r+1);
+  const colLabel = c => String.fromCharCode(65+c);
   const rc = (r,c)=>`${colLabel(c)}${rowLabel(r)}`;
   const rcTag = (r,c)=>`<code>${rc(r,c)}</code>`;
   const boxName = b => `ブロック${b+1}`;
