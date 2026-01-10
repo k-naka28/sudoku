@@ -166,7 +166,6 @@
       if((move.action === 'place' || move.placeTarget) && Number.isInteger(move.r) && Number.isInteger(move.c)){
         wraps[move.r][move.c].classList.add('hint-target');
       }
-      markCells(move.unitCells, 'hint-target');
       markCells(move.pairCells, 'hint-focus');
       markCells(move.tripleCells, 'hint-focus');
       markCells(move.quadCells, 'hint-focus');
@@ -426,6 +425,7 @@
       window.SudokuSums.updateSums(g, rowCells, colCells, blockCells);
       updateCandidates(g);
       updateHintButtons(g);
+      updateUndoRedoButtons();
     }
 
     // 初期スナップショット
@@ -436,18 +436,6 @@
   // ---------- ヒント計算（1手適用用） ----------
   function computeHintWithOpts(cand, opts){
     const H = window.SudokuHints;
-    const hiddenUnitCells = (h)=>{
-      if(!h || !h.kind) return null;
-      if(h.kind === 'hidden-row') return Array.from({length:9},(_,c)=>[h.unit,c]);
-      if(h.kind === 'hidden-col') return Array.from({length:9},(_,r)=>[r,h.unit]);
-      if(h.kind === 'hidden-box'){
-        const br = Math.floor(h.unit/3)*3, bc = (h.unit%3)*3;
-        const cells = [];
-        for(let dr=0;dr<3;dr++)for(let dc=0;dc<3;dc++) cells.push([br+dr, bc+dc]);
-        return cells;
-      }
-      return null;
-    };
 
     // 優先度：「わかりやすい → 難しい」
     // Hidden → Naked → Locked → Pairs → Triples → X-Wing → Skyscraper → Kite → Swordfish → Jellyfish → XYZ-Wing → Y-Wing → Quads
@@ -487,8 +475,7 @@
         (h.kind?.includes('quad'))      ? R.quads(h)   :
         '論理の詳細は未定義です。';
       const action = h.action || (Number.isInteger(h.r) ? 'place' : 'eliminate');
-      const unitCells = h.kind?.startsWith('hidden') ? hiddenUnitCells(h) : null;
-      return {...h, action, reason, unitCells};
+      return {...h, action, reason};
     };
 
     for(const fn of order){
