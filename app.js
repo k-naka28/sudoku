@@ -77,6 +77,36 @@
     const {initBoard,inputs,wraps,readGrid,renderGrid,applyGivenMask,clearFlags,setManualColor} = window.SudokuGrid;
     const {validGrid,solve} = window.SudokuCore;
     const R = window.Reasons;
+    let hintActive = false;
+
+    function clearHintMarks(){
+      for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+        wraps[r][c].classList.remove('hint-target','hint-focus','hint-elim');
+      }
+    }
+    function exitHintMode(){
+      if(!hintActive) return;
+      hintActive = false;
+      clearHintMarks();
+      window.SudokuGrid.hideCandidates();
+    }
+    function markCells(cells, cls){
+      if(!cells) return;
+      for(const [r,c] of cells){ wraps[r][c].classList.add(cls); }
+    }
+    function showHintMode(cand, move){
+      hintActive = true;
+      window.SudokuGrid.showCandidates(cand, readGrid());
+      clearHintMarks();
+      wraps[move.r][move.c].classList.add('hint-target');
+      markCells(move.pairCells, 'hint-focus');
+      markCells(move.tripleCells, 'hint-focus');
+      markCells(move.quadCells, 'hint-focus');
+      if(move.pivot) markCells([move.pivot], 'hint-focus');
+      if(move.p1) markCells([move.p1], 'hint-focus');
+      if(move.p2) markCells([move.p2], 'hint-focus');
+      markCells(move.eliminated, 'hint-elim');
+    }
 
     // 盤面生成 & 入力イベント
     initBoard($('board'));
@@ -85,6 +115,7 @@
         const w = wraps[r][c];
         const inp = inputs[r][c];
         inp.addEventListener('input', e=>{
+          exitHintMode();
           const v = e.target.value.replace(/[^0-9]/g,'');
           e.target.value = (v==='0') ? '' : v;
           if(w.classList.contains('given')) return;
@@ -106,6 +137,7 @@
 
     // ------ ボタン群 ------
     $('solve').addEventListener('click', ()=>{
+      exitHintMode();
       const g = readGrid();
       if(!validGrid(g)){ setMsg('<strong>矛盾：</strong> 行/列/ブロック内で重複があります。','err'); return; }
       const before = snapshot();
@@ -132,7 +164,9 @@
         setMsg('矛盾があるためヒントを出せません。','err');
         return;
       }
-      const move = computeNextHint();
+      exitHintMode();
+      const cand = window.SudokuHints.buildCandidates(hintGrid);
+      const move = computeNextHint(cand);
       if(!move){ setMsg('今は確定ヒントなし。','warn'); return; }
       const {r,c,d,reason} = move;
       if(wraps[r][c].classList.contains('given')){ setMsg('そのマスは固定（黒）です。','warn'); return; }
@@ -143,46 +177,54 @@
       wraps[r][c].classList.remove('auto');
       wraps[r][c].classList.add('manual','hinted');  // ← 緑
       refresh();
+      showHintMode(cand, move);
       suspendHistory = false;
 
       pushSnapshot(snapshot());
-      setMsg(`<div><strong>ヒント適用：</strong>${rcTag(r,c)} に <b>${d}</b></div>` + reason, 'ok');
+      setMsg(`<div><strong>ヒント適用：</strong>${rcTag(r,c)} に <b>${d}</b></div>` + reason + '<div><small>※候補はヒント時点の表示（次の操作で非表示）</small></div>', 'ok');
     });
 
     $('undo').addEventListener('click', ()=>{
+      exitHintMode();
       if(!canUndo()) return;
       hIndex--; applySnapshot(deepClone(history[hIndex]));
       setMsg('1手戻しました。','ok'); updateUndoRedoButtons();
     });
     $('redo').addEventListener('click', ()=>{
+      exitHintMode();
       if(!canRedo()) return;
       hIndex++; applySnapshot(deepClone(history[hIndex]));
       setMsg('1手進めました。','ok'); updateUndoRedoButtons();
     });
 
     $('check').addEventListener('click', ()=>{
+      exitHintMode();
       const ok = window.SudokuCore.validGrid(window.SudokuGrid.readGrid());
       setMsg(ok ? '矛盾なし。' : '矛盾あり（行/列/3x3で重複）。', ok ? 'ok' : 'err');
     });
 
     $('clear').addEventListener('click', ()=>{
+      exitHintMode();
       renderGrid(Array.from({length:9},()=>Array(9).fill(0)));
       clearFlags(); refresh(); setMsg('クリアしました。','ok');
       pushSnapshot(snapshot());
     });
 
     $('demo').addEventListener('click', ()=>{
+      exitHintMode();
       loadLinear('530070000600195000098000060800060003400803001700020006060000280000419005000080079');
     });
     $('load').addEventListener('click', ()=> loadLinear($('linear').value));
     $('export').addEventListener('click', ()=>{
+      exitHintMode();
       const g = window.SudokuGrid.readGrid();
       $('linear').value = g.flat().map(v=>v||0).join('');
       setMsg('盤面を書き出しました。','ok');
     });
-    $('manualColor').addEventListener('change', e=> window.SudokuGrid.setManualColor(e.target.value));
+    $('manualColor').addEventListener('change', e=>{ exitHintMode(); window.SudokuGrid.setManualColor(e.target.value); });
 
     function loadLinear(s){
+      exitHintMode();
       s=(s||'').replace(/[^0-9.]/g,'').replace(/\./g,'0');
       if(s.length!==81){ setMsg('81文字の0-9で貼り付けてください。','warn'); return; }
       const g = Array.from({length:9},()=>Array(9).fill(0));
@@ -205,10 +247,8 @@
   });
 
   // ---------- ヒント計算（1手適用用） ----------
-  function computeNextHint(){
+  function computeNextHint(cand){
     const H = window.SudokuHints;
-    const g = window.SudokuGrid.readGrid();
-    const cand = H.buildCandidates(g);
 
     // 優先度：「わかりやすい → 難しい」
     // Hidden → Naked → Locked → Pairs → Triples → X-Wing → Swordfish → Y-Wing → Quads

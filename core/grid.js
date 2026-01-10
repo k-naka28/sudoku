@@ -1,12 +1,17 @@
 // window.SudokuGrid: 盤面生成・読み書き・色
 (function(w){
-  const inputs=[], wraps=[];
+  const inputs=[], wraps=[], cands=[];
+  let boardEl = null;
   function initBoard(el){
+    boardEl = el;
     for(let r=0;r<9;r++){inputs[r]=[];wraps[r]=[];
       for(let c=0;c<9;c++){
         const wv=document.createElement('div'); wv.className=`cell r${r} c${c}`;
         const inp=document.createElement('input'); inp.setAttribute('inputmode','numeric'); inp.maxLength=1;
-        wv.appendChild(inp); el.appendChild(wv); inputs[r][c]=inp; wraps[r][c]=wv;
+        const cand=document.createElement('div'); cand.className='cand';
+        for(let d=1;d<=9;d++){ const s=document.createElement('span'); s.dataset.d=String(d); cand.appendChild(s); }
+        wv.appendChild(inp); wv.appendChild(cand); el.appendChild(wv);
+        inputs[r][c]=inp; wraps[r][c]=wv; cands[r]=cands[r]||[]; cands[r][c]=cand;
       }
     }
   }
@@ -15,5 +20,21 @@
   function clearFlags(){for(let r=0;r<9;r++)for(let c=0;c<9;c++){wraps[r][c].className=`cell r${r} c${c}`;inputs[r][c].readOnly=false}}
   function applyGivenMask(g){clearFlags();for(let r=0;r<9;r++)for(let c=0;c<9;c++)if(g[r][c]){wraps[r][c].classList.add('given');inputs[r][c].readOnly=true}}
   function setManualColor(v){document.documentElement.style.setProperty('--manual-color', v==='blue'?'#1d4ed8':'#111')}
-  w.SudokuGrid={inputs,wraps,initBoard,readGrid,renderGrid,applyGivenMask,clearFlags,setManualColor};
+  function showCandidates(cand, grid){
+    if(!boardEl) return;
+    boardEl.classList.add('show-cand');
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+      const cellCands = cand[r][c] || [];
+      const spans = cands[r][c].children;
+      const filled = grid && grid[r][c];
+      for(let d=1;d<=9;d++){
+        spans[d-1].textContent = (!filled && cellCands.includes(d)) ? String(d) : '';
+      }
+    }
+  }
+  function hideCandidates(){
+    if(!boardEl) return;
+    boardEl.classList.remove('show-cand');
+  }
+  w.SudokuGrid={inputs,wraps,initBoard,readGrid,renderGrid,applyGivenMask,clearFlags,setManualColor,showCandidates,hideCandidates};
 })(window);
