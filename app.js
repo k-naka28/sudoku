@@ -55,6 +55,7 @@
     s.auto.flat().map(Number).join(''),
     s.ocr.flat().map(Number).join(''),
     s.lowconf.flat().map(Number).join(''),
+    s.hinted ? s.hinted.flat().map(Number).join('') : '',
     s.bans ? s.bans.flat().map(a=>a.join('')).join('.') : ''
   ].join('|');
 
@@ -66,8 +67,9 @@
     const auto  = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('auto')));
     const ocr   = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('ocr')));
     const lowconf = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('lowconf')));
+    const hinted = Array.from({length:9},(_,r)=>Array.from({length:9},(_,c)=>wraps[r][c].classList.contains('hinted')));
     const bans = bansToArrays();
-    return {grid:g, given, manual, auto, ocr, lowconf, bans};
+    return {grid:g, given, manual, auto, ocr, lowconf, hinted, bans};
   }
   function applySnapshot(snap){
     const {renderGrid,clearFlags,inputs,wraps} = window.SudokuGrid;
@@ -83,12 +85,14 @@
       if(!snap.given[r][c] && snap.auto[r][c])   wraps[r][c].classList.add('auto');
       if(!snap.given[r][c] && snap.ocr[r][c])    wraps[r][c].classList.add('ocr');
       if(!snap.given[r][c] && snap.lowconf[r][c]) wraps[r][c].classList.add('lowconf');
+      if(!snap.given[r][c] && snap.hinted && snap.hinted[r][c]) wraps[r][c].classList.add('hinted');
     }
     applyBansFromArrays(snap.bans || []);
     clearPendingElims();
     lastKey = snapKey(snap);
     refresh();
     suspendHistory = false;
+    updateUndoRedoButtons();
   }
   function pushSnapshot(snap){
     const key = snapKey(snap);
@@ -210,12 +214,24 @@
     ({blockCells,rowCells,colCells} = window.SudokuSums.initSums($('rowSums'),$('colSums'),$('blockSums')));
 
     // ------ ボタン群 ------
+    const doHintBtn = $('doHint');
     const candBtn = $('toggleCandidates');
     const reduceBtn = $('reduceCandidates');
     let reduceMode = 'hint';
     const setReduceLabel = ()=>{ reduceBtn.textContent = (reduceMode === 'hint') ? 'ヒントを表示' : '候補を減らす'; };
     resetReduceUI = ()=>{ reduceMode = 'hint'; setReduceLabel(); };
-    setReduceDisabled = (disabled)=>{ reduceBtn.disabled = !!disabled; };
+    let reduceNoHint = false;
+    const isSolvedGrid = (g)=>{
+      for(let r=0;r<9;r++)for(let c=0;c<9;c++) if(!g[r][c]) return false;
+      return validGrid(g);
+    };
+    const updateHintButtons = (g)=>{
+      const grid = g || readGrid();
+      const solved = isSolvedGrid(grid);
+      doHintBtn.disabled = solved;
+      reduceBtn.disabled = solved || reduceNoHint;
+    };
+    setReduceDisabled = (disabled)=>{ reduceNoHint = !!disabled; updateHintButtons(); };
     const setCandLabel = ()=>{ candBtn.textContent = candidatesOn ? '候補:ON' : '候補:OFF'; };
     function buildCandidatesWithBans(g){
       const base = window.SudokuHints.buildCandidates(g);
@@ -409,6 +425,7 @@
       const g = window.SudokuGrid.readGrid();
       window.SudokuSums.updateSums(g, rowCells, colCells, blockCells);
       updateCandidates(g);
+      updateHintButtons(g);
     }
 
     // 初期スナップショット
