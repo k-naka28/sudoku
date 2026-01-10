@@ -9,7 +9,7 @@
 </head>
 <body>
   <header>
-    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.20</span></h1>
+    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.21</span></h1>
     <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。<strong>埋める</strong>は確定手を入力、<strong>ヒントを表示</strong>で削除ヒント→<strong>候補を減らす</strong>で適用。</p>
   </header>
 
@@ -59,6 +59,7 @@
     <details class="history">
       <summary>更新履歴</summary>
       <ul>
+        <li><strong>1.21</strong> 解説内の座標表記を「列番号＋行記号」（例: 5A）に統一</li>
         <li><strong>1.20</strong> 候補削除を「ヒント表示→候補削除」に改名／削除不可時は確定候補をハイライト</li>
         <li><strong>1.19</strong> 候補削除を「削除ヒント表示→適用」の2段階に変更</li>
         <li><strong>1.18</strong> 盤面の上/左に座標ラベル（1〜9 / A〜I）を表示</li>
@@ -95,6 +96,6 @@
   <script defer src="./hints/swordfish.js"></script>
   <script defer src="./hints/jellyfish.js"></script>
 
-  <script defer src="./app.js?v=1.20"></script>
+  <script defer src="./app.js?v=1.21"></script>
 </body>
 </html>

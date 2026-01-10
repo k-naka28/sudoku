@@ -1,6 +1,8 @@
 // ui/reasons.js
 (function(w){
-  const rc = (r,c)=>`${c+1}${String.fromCharCode(65+r)}`;
+  const rowLabel = r => String.fromCharCode(65+r);
+  const colLabel = c => String(c+1);
+  const rc = (r,c)=>`${colLabel(c)}${rowLabel(r)}`;
   const rcTag = (r,c)=>`<code>${rc(r,c)}</code>`;
   const boxName = b => `ブロック${b+1}`;
   const listRC = (cells, max=6)=>{
@@ -15,8 +17,8 @@
 
   const Reasons = {
     hidden: h => {
-      const where = h.kind==='hidden-row' ? `行${h.unit+1}` :
-                    h.kind==='hidden-col' ? `列${h.unit+1}` : `ブロック${h.unit+1}`;
+      const where = h.kind==='hidden-row' ? `行${rowLabel(h.unit)}` :
+                    h.kind==='hidden-col' ? `列${colLabel(h.unit)}` : `ブロック${h.unit+1}`;
       return `
         <div><strong>Hidden Single（${where}）</strong></div>
         <ol>
@@ -38,18 +40,18 @@
       const p2 = h.pairCells ? rcTag(h.pairCells[1][0], h.pairCells[1][1]) : '';
       if (h.kind === 'naked-pair-row')
         return `
-          <div><strong>Naked Pair（行${h.row+1}）</strong></div>
+          <div><strong>Naked Pair（行${rowLabel(h.row)}）</strong></div>
           <ol>
             <li><b>観察：</b> ${P} は ${p1} と ${p2} の <b>2マスだけ</b>。</li>
-            <li><b>操作：</b> 行${h.row+1} の他マスから ${P} を削除。</li>
+            <li><b>操作：</b> 行${rowLabel(h.row)} の他マスから ${P} を削除。</li>
             ${resultLine(h)}
           </ol>`;
       if (h.kind === 'naked-pair-col')
         return `
-          <div><strong>Naked Pair（列${h.col+1}）</strong></div>
+          <div><strong>Naked Pair（列${colLabel(h.col)}）</strong></div>
           <ol>
             <li><b>観察：</b> ${P} は ${p1} と ${p2} の 2マスだけ。</li>
-            <li><b>操作：</b> 列${h.col+1} の他マスから ${P} を削除。</li>
+            <li><b>操作：</b> 列${colLabel(h.col)} の他マスから ${P} を削除。</li>
             ${resultLine(h)}
           </ol>`;
       if (h.kind === 'naked-pair-box')
@@ -60,8 +62,8 @@
             <li><b>操作：</b> 同ブロックの他マスから ${P} を削除。</li>
             ${resultLine(h)}
           </ol>`;
-      const where = h.kind==='hidden-pair-row' ? `行${h.row+1}` :
-                    h.kind==='hidden-pair-col' ? `列${h.col+1}` : boxName(h.box);
+      const where = h.kind==='hidden-pair-row' ? `行${rowLabel(h.row)}` :
+                    h.kind==='hidden-pair-col' ? `列${colLabel(h.col)}` : boxName(h.box);
       return `
         <div><strong>Hidden Pair（${where}）</strong></div>
         <ol>
@@ -73,8 +75,8 @@
     triples: h => {
       const T = `{${h.triple.join(',')}}`;
       const cells = h.tripleCells.map(([r,c])=>rcTag(r,c)).join('／');
-      const where = h.kind.includes('-row') ? `行${h.row+1}` :
-                    h.kind.includes('-col') ? `列${h.col+1}` : boxName(h.box);
+      const where = h.kind.includes('-row') ? `行${rowLabel(h.row)}` :
+                    h.kind.includes('-col') ? `列${colLabel(h.col)}` : boxName(h.box);
       if (h.kind.startsWith('naked'))
         return `
           <div><strong>Naked Triple（${where}）</strong></div>
@@ -92,15 +94,15 @@
         </ol>`;
     },
     xwing: h => {
-      const rows = `r${h.rows[0]+1}・r${h.rows[1]+1}`;
-      const cols = `c${h.cols[0]+1}・c${h.cols[1]+1}`;
+      const rows = `${rowLabel(h.rows[0])}・${rowLabel(h.rows[1])}`;
+      const cols = `${colLabel(h.cols[0])}・${colLabel(h.cols[1])}`;
       const elim = h.eliminated ? h.eliminated.map(([r,c])=>rcTag(r,c)).slice(0,6).join('、') + (h.eliminated.length>6?` など（全${h.eliminated.length}マス）`:'') : '—';
       if (h.kind==='xwing-row')
         return `
           <div><strong>X-Wing（行基準／数字 ${h.d}）</strong></div>
           <ol>
-            <li><b>観察：</b> 行 ${rows} の ${h.d} 候補が 2 列 <b>${cols}</b> に揃う。</li>
-            <li><b>操作：</b> その 2 列の他行から ${h.d} を削除（例：${elim}）。</li>
+          <li><b>観察：</b> 行 ${rows} の ${h.d} 候補が 2 列 <b>${cols}</b> に揃う。</li>
+          <li><b>操作：</b> その 2 列の他行から ${h.d} を削除（例：${elim}）。</li>
             ${resultLine(h)}
           </ol>`;
       return `
@@ -131,35 +133,35 @@
       const elimCells = listRC(h.eliminated, 6);
       if (h.kind === 'locked-pointing-row')
         return `
-          <div><strong>Locked Candidates – Pointing（${box} → 行r${h.row+1}）</strong></div>
+          <div><strong>Locked Candidates – Pointing（${box} → 行${rowLabel(h.row)}）</strong></div>
           <ol>
-            <li><b>観察：</b> ${box} 内の <b>${h.base}</b> 候補が <b>行r${h.row+1}</b> にだけ存在（${baseCells}）。</li>
+            <li><b>観察：</b> ${box} 内の <b>${h.base}</b> 候補が <b>行${rowLabel(h.row)}</b> にだけ存在（${baseCells}）。</li>
             <li><b>理由：</b> ${box} で ${h.base} を置けるのはその行だけ → 同じ行の他ブロックには置けない。</li>
-            <li><b>操作：</b> 行r${h.row+1} の他ブロックから <b>${h.base}</b> を削除（例：${elimCells}）。</li>
+            <li><b>操作：</b> 行${rowLabel(h.row)} の他ブロックから <b>${h.base}</b> を削除（例：${elimCells}）。</li>
             ${resultLine(h)}
           </ol>`;
       if (h.kind === 'locked-pointing-col')
         return `
-          <div><strong>Locked Candidates – Pointing（${box} → 列c${h.col+1}）</strong></div>
+          <div><strong>Locked Candidates – Pointing（${box} → 列${colLabel(h.col)}）</strong></div>
           <ol>
-            <li><b>観察：</b> ${box} 内の <b>${h.base}</b> 候補が <b>列c${h.col+1}</b> にだけ存在（${baseCells}）。</li>
+            <li><b>観察：</b> ${box} 内の <b>${h.base}</b> 候補が <b>列${colLabel(h.col)}</b> にだけ存在（${baseCells}）。</li>
             <li><b>理由：</b> ${box} で ${h.base} を置けるのはその列だけ → 同じ列の他ブロックには置けない。</li>
-            <li><b>操作：</b> 列c${h.col+1} の他ブロックから <b>${h.base}</b> を削除（例：${elimCells}）。</li>
+            <li><b>操作：</b> 列${colLabel(h.col)} の他ブロックから <b>${h.base}</b> を削除（例：${elimCells}）。</li>
             ${resultLine(h)}
           </ol>`;
       if (h.kind === 'locked-claiming-row')
         return `
-          <div><strong>Locked Candidates – Claiming（行r${h.row+1} → ${box}）</strong></div>
+          <div><strong>Locked Candidates – Claiming（行${rowLabel(h.row)} → ${box}）</strong></div>
           <ol>
-            <li><b>観察：</b> 行r${h.row+1} の <b>${h.base}</b> 候補が ${box} のみ（${baseCells}）。</li>
+            <li><b>観察：</b> 行${rowLabel(h.row)} の <b>${h.base}</b> 候補が ${box} のみ（${baseCells}）。</li>
             <li><b>理由：</b> 行で ${h.base} を置けるのは ${box} だけ → ${box} の他行には置けない。</li>
             <li><b>操作：</b> ${box} の他行から <b>${h.base}</b> を削除（例：${elimCells}）。</li>
             ${resultLine(h)}
           </ol>`;
       return `
-        <div><strong>Locked Candidates – Claiming（列c${h.col+1} → ${box}）</strong></div>
+        <div><strong>Locked Candidates – Claiming（列${colLabel(h.col)} → ${box}）</strong></div>
         <ol>
-          <li><b>観察：</b> 列c${h.col+1} の <b>${h.base}</b> 候補が ${box} のみ（${baseCells}）。</li>
+          <li><b>観察：</b> 列${colLabel(h.col)} の <b>${h.base}</b> 候補が ${box} のみ（${baseCells}）。</li>
           <li><b>理由：</b> 列で ${h.base} を置けるのは ${box} だけ → ${box} の他列には置けない。</li>
           <li><b>操作：</b> ${box} の他列から <b>${h.base}</b> を削除（例：${elimCells}）。</li>
           ${resultLine(h)}
@@ -167,8 +169,8 @@
     },
     // ★ 追加：Swordfish（X-Wing の 3 本版）
     swordfish: h => {
-      const rows = h.rows.map(r=>`r${r+1}`).join('・');
-      const cols = h.cols.map(c=>`c${c+1}`).join('・');
+      const rows = h.rows.map(r=>rowLabel(r)).join('・');
+      const cols = h.cols.map(c=>colLabel(c)).join('・');
       const elim = h.eliminated ? h.eliminated.map(([r,c])=>rcTag(r,c)).slice(0,6).join('、') + (h.eliminated.length>6?` など（全${h.eliminated.length}マス）`:'') : '—';
       if(h.kind==='swordfish-row')
         return `
@@ -188,8 +190,8 @@
         </ol>`;
     },
     jellyfish: h => {
-      const rows = h.rows.map(r=>`r${r+1}`).join('・');
-      const cols = h.cols.map(c=>`c${c+1}`).join('・');
+      const rows = h.rows.map(r=>rowLabel(r)).join('・');
+      const cols = h.cols.map(c=>colLabel(c)).join('・');
       const elim = h.eliminated ? h.eliminated.map(([r,c])=>rcTag(r,c)).slice(0,6).join('、') + (h.eliminated.length>6?` など（全${h.eliminated.length}マス）`:'') : '—';
       if(h.kind==='jellyfish-row')
         return `
@@ -236,7 +238,7 @@
       return `
         <div><strong>Two-String Kite（数字 ${h.d}）</strong></div>
         <ol>
-          <li><b>観察：</b> 行r${h.row+1} と列c${h.col+1} は ${h.d} 候補が2つずつ。うち 2 マスが同一ブロック内（ベース：${base}）。</li>
+          <li><b>観察：</b> 行${rowLabel(h.row)} と列${colLabel(h.col)} は ${h.d} 候補が2つずつ。うち 2 マスが同一ブロック内（ベース：${base}）。</li>
           <li><b>理由：</b> ベースのどちらかに ${h.d} が入らないなら、屋根（${roof}）のどちらかに必ず入る。</li>
           <li><b>操作：</b> 屋根2マスの両方から見えるマスから <b>${h.d}</b> を削除（例：${elim}）。</li>
           ${resultLine(h)}
@@ -260,8 +262,8 @@
     quads: h => {
       const Q = `{${h.quad.join(',')}}`;
       const cells = h.quadCells.map(([r,c])=>rcTag(r,c)).join('／');
-      const where = h.kind.includes('-row') ? `行${h.row+1}` :
-                    h.kind.includes('-col') ? `列${h.col+1}` : boxName(h.box);
+      const where = h.kind.includes('-row') ? `行${rowLabel(h.row)}` :
+                    h.kind.includes('-col') ? `列${colLabel(h.col)}` : boxName(h.box);
       if(h.kind.startsWith('naked'))
         return `
           <div><strong>Naked Quad（${where}）</strong></div>
