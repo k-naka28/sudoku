@@ -8,11 +8,11 @@
     for(let r=0;r<9;r++){inputs[r]=[];wraps[r]=[];
       for(let c=0;c<9;c++){
         const wv=document.createElement('div'); wv.className=`cell r${r} c${c}`;
-        wv.dataset.coord = coordLabel(r,c);
+        const coord=document.createElement('div'); coord.className='coord'; coord.textContent=coordLabel(r,c);
         const inp=document.createElement('input'); inp.setAttribute('inputmode','numeric'); inp.maxLength=1;
         const cand=document.createElement('div'); cand.className='cand';
         for(let d=1;d<=9;d++){ const s=document.createElement('span'); s.dataset.d=String(d); cand.appendChild(s); }
-        wv.appendChild(inp); wv.appendChild(cand); el.appendChild(wv);
+        wv.appendChild(coord); wv.appendChild(inp); wv.appendChild(cand); el.appendChild(wv);
         inputs[r][c]=inp; wraps[r][c]=wv; cands[r]=cands[r]||[]; cands[r][c]=cand;
       }
     }
