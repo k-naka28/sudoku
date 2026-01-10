@@ -9,8 +9,8 @@
 </head>
 <body>
   <header>
-    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.19</span></h1>
-    <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。<strong>埋める</strong>は確定手を入力、<strong>ヒントを減らす</strong>で削除ヒント表示→<strong>候補を減らす</strong>で適用。</p>
+    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.20</span></h1>
+    <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。<strong>埋める</strong>は確定手を入力、<strong>ヒントを表示</strong>で削除ヒント→<strong>候補を減らす</strong>で適用。</p>
   </header>
 
   <main>
@@ -30,7 +30,7 @@
         <div class="row">
           <button id="solve" class="primary">解く</button>
           <button id="doHint">埋める（1手）</button>
-          <button id="reduceCandidates">ヒントを減らす</button>
+          <button id="reduceCandidates">ヒントを表示</button>
           <button id="toggleCandidates">候補:OFF</button>
           <button id="undo" disabled>戻す</button>
           <button id="redo" disabled>進む</button>
@@ -59,6 +59,7 @@
     <details class="history">
       <summary>更新履歴</summary>
       <ul>
+        <li><strong>1.20</strong> 候補削除を「ヒント表示→候補削除」に改名／削除不可時は確定候補をハイライト</li>
         <li><strong>1.19</strong> 候補削除を「削除ヒント表示→適用」の2段階に変更</li>
         <li><strong>1.18</strong> 盤面の上/左に座標ラベル（1〜9 / A〜I）を表示</li>
         <li><strong>1.17</strong> 候補削除のたびに「次の削除ヒント」を表示／座標表示を確実に可視化</li>
@@ -94,6 +95,6 @@
   <script defer src="./hints/swordfish.js"></script>
   <script defer src="./hints/jellyfish.js"></script>
 
-  <script defer src="./app.js?v=1.19"></script>
+  <script defer src="./app.js?v=1.20"></script>
 </body>
 </html>

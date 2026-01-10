@@ -210,7 +210,7 @@
     const candBtn = $('toggleCandidates');
     const reduceBtn = $('reduceCandidates');
     let reduceMode = 'hint';
-    const setReduceLabel = ()=>{ reduceBtn.textContent = (reduceMode === 'hint') ? 'ヒントを減らす' : '候補を減らす'; };
+    const setReduceLabel = ()=>{ reduceBtn.textContent = (reduceMode === 'hint') ? 'ヒントを表示' : '候補を減らす'; };
     resetReduceUI = ()=>{ reduceMode = 'hint'; setReduceLabel(); };
     const setCandLabel = ()=>{ candBtn.textContent = candidatesOn ? '候補:ON' : '候補:OFF'; };
     function buildCandidatesWithBans(g){
@@ -237,7 +237,14 @@
       if(reduceMode === 'apply'){
         if(!pendingElims || pendingElims.length===0){
           clearPendingElims();
-          setMsg('削除ヒントがありません。','warn');
+          const cand = buildCandidatesWithBans(g);
+          const place = computePlaceHint(cand);
+          if(place){
+            showHintMode(cand, {...place, placeTarget:true});
+            setMsg(`<div><strong>確定候補：</strong>${rcTag(place.r,place.c)} = <b>${place.d}</b></div>` + place.reason, 'ok');
+          }else{
+            setMsg('削除ヒントがありません。','warn');
+          }
           return;
         }
         const applied = pendingElims.shift();
@@ -252,17 +259,19 @@
 
       const cand = buildCandidatesWithBans(g);
       const move = computeElimHint(cand);
-      if(!move){
-        setMsg('今は削除ヒントなし。','warn');
+      if(!move || !move.eliminations || move.eliminations.length===0){
+        const place = computePlaceHint(cand);
+        if(place){
+          showHintMode(cand, {...place, placeTarget:true});
+          setMsg(`<div><strong>確定候補：</strong>${rcTag(place.r,place.c)} = <b>${place.d}</b></div>` + place.reason, 'ok');
+        }else{
+          setMsg('今は削除ヒントなし。','warn');
+        }
         return;
       }
       pendingMove = move;
       const elim = move.eliminations[0];
-      pendingElims = elim ? [elim] : [];
-      if(!elim){
-        setMsg('今は削除ヒントなし。','warn');
-        return;
-      }
+      pendingElims = [elim];
       const displayMove = {...move, action:'eliminate', eliminations:[elim]};
       showHintMode(cand, displayMove);
       reduceMode = 'apply';
@@ -312,7 +321,7 @@
       const cand = buildCandidatesWithBans(hintGrid);
       const move = computePlaceHint(cand);
       if(!move){
-        setMsg('今は確定ヒントなし。ヒントを減らすを使ってください。','warn');
+        setMsg('今は確定ヒントなし。ヒントを表示を使ってください。','warn');
         return;
       }
       const {r,c,d,reason} = move;
