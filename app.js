@@ -3,7 +3,8 @@
 (function(){
   // ---------- ユーティリティ ----------
   const $ = id => document.getElementById(id);
-  const rc = (r,c)=>`行${r+1} 列${c+1}`;
+  const coord = (r,c)=>`${9-c}${String.fromCharCode(97+r)}`;
+  const rc = (r,c)=>coord(r,c);
   const rcTag = (r,c)=>`<code>${rc(r,c)}</code>`;
 
   function setMsg(html, kind='ok'){

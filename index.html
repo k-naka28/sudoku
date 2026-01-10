@@ -9,7 +9,7 @@
 </head>
 <body>
   <header>
-    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.15</span></h1>
+    <h1>Sudoku（ヒント1手適用・Undo/Redo対応） <span class="version">ver1.16</span></h1>
     <p class="hint">黒=問題, 青=手入力(切替), 赤=ソルバ。<strong>埋める</strong>は確定手を入力、<strong>候補を減らす</strong>は 1 回で 1 候補を削除します。</p>
   </header>
 
@@ -57,6 +57,7 @@
     <details class="history">
       <summary>更新履歴</summary>
       <ul>
+        <li><strong>1.16</strong> マス座標（将棋盤式の英数字）を盤面に表示</li>
         <li><strong>1.15</strong> 「埋める」と「候補を減らす」を分離（候補削除は1回=1候補）</li>
         <li><strong>1.14</strong> 候補削除後に自動で次の一手へ進行</li>
         <li><strong>1.13</strong> Skyscraper／Two-String Kite／XYZ-Wing 追加（候補消去の手筋を強化）</li>
@@ -88,6 +89,6 @@
   <script defer src="./hints/swordfish.js"></script>
   <script defer src="./hints/jellyfish.js"></script>
 
-  <script defer src="./app.js?v=1.15"></script>
+  <script defer src="./app.js?v=1.16"></script>
 </body>
 </html>
